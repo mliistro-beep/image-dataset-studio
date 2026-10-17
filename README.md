@@ -26,6 +26,16 @@ Florence-2 does not accept free-form instructions: with it the instruction field
 
 ## Installation
 
+### Automatic (Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mliistro-beep/image-dataset-studio/main/install.sh | bash
+```
+
+The script detects an NVIDIA GPU and picks the matching PyTorch CUDA build (otherwise it installs the CPU version), installs missing system packages (asking first), downloads the repository into `~/image-dataset-studio`, creates the virtual environment and adds an `image-dataset-studio` command plus an applications menu entry. Run it again to update. Options: `--dir PATH`, `--cpu`, `--gpu`, `--no-desktop`, `--yes`, `--uninstall`.
+
+### Manual
+
 Requires Python 3.10+.
 
 ```bash
@@ -108,6 +118,16 @@ WD14 e il VLM **non vengono mai tenuti in memoria insieme**: l'app scarica un mo
 Florence-2 non accetta istruzioni libere: con questo modello il campo istruzione diventa un selettore del livello di dettaglio.
 
 ## Installazione
+
+### Automatica (Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mliistro-beep/image-dataset-studio/main/install.sh | bash
+```
+
+Lo script rileva una GPU NVIDIA e sceglie la versione di PyTorch CUDA adatta (altrimenti installa la versione CPU), installa i pacchetti di sistema mancanti (chiedendo prima), scarica il repository in `~/image-dataset-studio`, crea l'ambiente virtuale e aggiunge il comando `image-dataset-studio` e una voce nel menu applicazioni. Rilancialo per aggiornare. Opzioni: `--dir PERCORSO`, `--cpu`, `--gpu`, `--no-desktop`, `--yes`, `--uninstall`.
+
+### Manuale
 
 Serve Python 3.10 o superiore.
 
