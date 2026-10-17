@@ -1,0 +1,38 @@
+# Ambienti virtuali / virtual environments
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Pesi dei modelli e cache / model weights and caches
+*.onnx
+*.safetensors
+*.bin
+*.gguf
+.cache/
+
+# Dataset e archivi locali / local datasets and archives
+*.tar.gz
+*.tgz
+*.zip
+original_dataset/
+dataset_tags/
+dataset_captions/
+
+# File di progetto non pubblicati / unpublished project files
+Mass_beta2-lora_dataset_auto_tagger_pyside6.py
+CLAUDE.md
+.claude/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

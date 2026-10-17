@@ -1,0 +1,7 @@
+# Installazione standard: CPU (desktop, portatili, Mac).
+#   pip install -r requirements.txt
+# Su Linux/Windows l'indice CPU di PyTorch evita di scaricare diversi GB di librerie CUDA inutili.
+--extra-index-url https://download.pytorch.org/whl/cpu
+-r requirements-base.txt
+onnxruntime>=1.17
+torch>=2.6

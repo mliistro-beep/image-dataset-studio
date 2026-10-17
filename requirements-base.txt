@@ -1,0 +1,8 @@
+# Dipendenze comuni (non installare direttamente: usa requirements.txt oppure requirements-gpu.txt)
+PySide6>=6.6
+numpy>=1.26
+Pillow>=10.0
+huggingface_hub>=0.30
+tqdm>=4.66
+transformers>=5.0,<6
+accelerate>=1.0

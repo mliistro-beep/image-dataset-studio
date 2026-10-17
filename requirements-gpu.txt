@@ -1,0 +1,10 @@
+# Installazione per GPU NVIDIA (profilo "GPU" con JoyCaption 4-bit), solo Linux/Windows.
+#   pip install -r requirements-gpu.txt
+# Se hai già installato requirements.txt, rimuovi prima le versioni CPU:
+#   pip uninstall -y onnxruntime torch
+# L'indice cu128 copre le RTX serie 20/30/40/50; cambia "cu128" se i tuoi driver richiedono un'altra versione CUDA.
+--extra-index-url https://download.pytorch.org/whl/cu128
+-r requirements-base.txt
+onnxruntime-gpu>=1.17
+torch>=2.6
+bitsandbytes>=0.45
