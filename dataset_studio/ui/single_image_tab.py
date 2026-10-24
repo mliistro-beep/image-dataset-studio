@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 
 from ..config import IMAGE_EXTENSIONS, AVAILABLE_MODELS, VLM_MODELS
 from ..i18n import tr
+from ..images import flatten_to_rgb
 from ..model_manager import manager
 from ..workers import SingleAnalysisThread
 from .dataset_source import image_file_filter
@@ -24,10 +25,12 @@ MODE_LABELS = {"tags": "single.mode_tags_short", "caption": "single.mode_caption
 
 
 def qimage_to_pil(qimg: QImage) -> Image.Image:
-    qimg = qimg.convertToFormat(QImage.Format_RGB888)
+    # RGBA8888 conserva l'alfa, che flatten_to_rgb compone su bianco
+    qimg = qimg.convertToFormat(QImage.Format_RGBA8888)
     ptr = qimg.constBits()
     data = bytes(ptr)[: qimg.bytesPerLine() * qimg.height()]
-    return Image.frombuffer("RGB", (qimg.width(), qimg.height()), data, "raw", "RGB", qimg.bytesPerLine(), 1).copy()
+    img = Image.frombuffer("RGBA", (qimg.width(), qimg.height()), data, "raw", "RGBA", qimg.bytesPerLine(), 1)
+    return flatten_to_rgb(img)
 
 
 class DropImageView(ZoomableImageView):
@@ -184,7 +187,7 @@ class SingleImageTab(QWidget):
     def load_file(self, path: str):
         try:
             with Image.open(path) as im:
-                image = im.convert("RGB")
+                image = flatten_to_rgb(im)
         except Exception as e:
             QMessageBox.warning(self, tr("common.error"), tr("single.open_error", error=e))
             return

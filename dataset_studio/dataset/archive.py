@@ -80,13 +80,18 @@ def create_archive(folder: str, out_dir: str, archive_ext: str = ".zip") -> str:
     folder_name = os.path.basename(folder.rstrip(os.sep))
     archive_path = os.path.join(out_dir, f"{folder_name}{archive_ext}")
     if archive_ext == ".zip":
-        with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for root_dir, _, files in os.walk(folder):
-                for file in files:
-                    full_p = os.path.join(root_dir, file)
-                    zf.write(full_p, os.path.relpath(full_p, folder))
+        write_zip(folder, archive_path)
     else:
         mode = "w:gz" if archive_ext == ".tar.gz" else "w:bz2"
         with tarfile.open(archive_path, mode) as tf:
             tf.add(folder, arcname=folder_name)
     return archive_path
+
+
+def write_zip(folder: str, archive_path: str):
+    """Comprime il contenuto di `folder` (percorsi relativi, senza cartella radice) in uno ZIP."""
+    with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for root_dir, _, files in os.walk(folder):
+            for file in files:
+                full_p = os.path.join(root_dir, file)
+                zf.write(full_p, os.path.relpath(full_p, folder))

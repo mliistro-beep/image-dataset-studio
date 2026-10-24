@@ -67,7 +67,9 @@ class ModelManager(QObject):
             self.status_changed.emit(self.describe())
             return self.model
 
-    def get_vlm(self, model_key: str, device: str, low_memory: bool, progress_cb, log_cb) -> vlm.VLMBackend:
+    def get_vlm(self, model_key: str, device: str, low_memory: bool, progress_cb, log_cb,
+                should_stop=lambda: False) -> vlm.VLMBackend:
+        """Ritorna il VLM richiesto, scaricando prima qualsiasi altro modello. InterruptedError se fermato."""
         with self._lock:
             key = f"{model_key}@{device}{'-low' if low_memory else ''}"
             if self.is_loaded("vlm", key):
@@ -80,7 +82,7 @@ class ModelManager(QObject):
 
             backend = vlm.create_backend(model_key, device, low_memory)
             try:
-                backend.load(log_cb, progress_cb)
+                backend.load(log_cb, progress_cb, should_stop)
             except Exception:
                 backend.unload()
                 raise

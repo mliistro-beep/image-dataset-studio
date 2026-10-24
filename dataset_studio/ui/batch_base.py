@@ -17,7 +17,7 @@ from ..i18n import tr
 from ..model_manager import manager
 from ..workers import format_eta
 from .dataset_source import DatasetSourceBox, show_layout_errors
-from .widgets import ZoomableImageView
+from .widgets import ThumbnailLoader, ZoomableImageView
 
 
 class BatchTabBase(QWidget):
@@ -38,6 +38,8 @@ class BatchTabBase(QWidget):
         self.last_loaded_text = ""
         self.is_processing = False
         self.worker = None
+        self.thumbnails = ThumbnailLoader(48, self)
+        self.thumbnails.loaded.connect(self._on_thumbnail_loaded)
         self._build_ui()
 
     # ------------------------------------------------------------------
@@ -233,12 +235,9 @@ class BatchTabBase(QWidget):
         self.list_gallery.blockSignals(True)
         self.list_gallery.clear()
         for filename in self.gallery_files:
-            item = QListWidgetItem(filename)
-            pixmap = QPixmap(os.path.join(self.original_dir(), filename))
-            if not pixmap.isNull():
-                item.setIcon(QIcon(pixmap.scaled(48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation)))
-            self.list_gallery.addItem(item)
+            self.list_gallery.addItem(QListWidgetItem(filename))
         self.list_gallery.blockSignals(False)
+        self.thumbnails.load((f, os.path.join(self.original_dir(), f)) for f in self.gallery_files)
 
         self.current_selected_filename = ""
         self.last_loaded_text = ""
@@ -249,6 +248,12 @@ class BatchTabBase(QWidget):
             self.lbl_preview_img.setText(tr("common.no_image"))
             self.txt_output.setText("")
             self.lbl_gallery_count.setText("0 / 0")
+
+    def _on_thumbnail_loaded(self, filename: str, image: QImage):
+        row = self.gallery_rows.get(filename)
+        item = self.list_gallery.item(row) if row is not None else None
+        if item is not None and item.text() == filename:
+            item.setIcon(QIcon(QPixmap.fromImage(image)))
 
     def _txt_path(self, filename: str) -> str:
         return os.path.join(self.target_dir(), layout.txt_name(filename))
@@ -332,7 +337,8 @@ class BatchTabBase(QWidget):
         if not self.current_selected_filename or not self.base_dir or self.is_processing:
             return
         current_text = self.txt_output.toPlainText()
-        if current_text != self.last_loaded_text and self.last_loaded_text != "":
+        # Anche se il file era vuoto o assente: il testo scritto a mano non va perso cambiando immagine
+        if current_text != self.last_loaded_text:
             txt_filename = layout.txt_name(self.current_selected_filename)
             try:
                 self._write_text(self.current_selected_filename, current_text)

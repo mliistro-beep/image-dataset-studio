@@ -180,23 +180,42 @@ class BatchTagTab(BatchTabBase):
     # Mass Edit
     # ------------------------------------------------------------------
     def _toggle_mass_edit(self, checked: bool):
+        if not checked and not self.widget_massedit.maybe_save():
+            # Annullato: si resta in Mass Edit con le modifiche in memoria
+            self.btn_mass_edit.blockSignals(True)
+            self.btn_mass_edit.setChecked(True)
+            self.btn_mass_edit.blockSignals(False)
+            return
         self.stack.setCurrentIndex(1 if checked else 0)
         if checked:
             self._auto_save_current_file()
-            tags_dir = self.target_dir()
-            images = layout.list_images(tags_dir)
-            if images:
-                self.widget_massedit.load_dataset(tags_dir, images)
-                self.log_signal.emit(tr("tag.log_mass_edit", count=len(images), dir=TAGS_DIR))
+            self._reload_mass_edit()
+        elif self.base_dir and self.list_gallery.currentItem():
+            # Mass Edit può aver riscritto il .txt mostrato nell'editor
+            self._on_gallery_selection_changed()
+
+    def _reload_mass_edit(self):
+        tags_dir = self.target_dir()
+        images = layout.list_images(tags_dir)
+        if images:
+            self.widget_massedit.load_dataset(tags_dir, images)
+            self.log_signal.emit(tr("tag.log_mass_edit", count=len(images), dir=TAGS_DIR))
 
     def _on_massedit_dataset_updated(self):
         if self.base_dir:
             self.refresh_gallery()
 
     def _load_dataset(self, base_dir):
+        # Il dataset è già cambiato: si può solo salvare o scartare, non annullare
+        self.widget_massedit.maybe_save(allow_cancel=False)
         super()._load_dataset(base_dir)
         if self.btn_mass_edit.isChecked():
-            self._toggle_mass_edit(True)
+            self._reload_mass_edit()
+
+    def set_processing(self, active: bool):
+        super().set_processing(active)
+        # Durante il tagging i .txt cambiano sotto Mass Edit: modifiche in memoria li sovrascriverebbero
+        self.widget_massedit.setEnabled(not active)
 
     # ------------------------------------------------------------------
     # Impostazioni (stesse chiavi dello script originale)
@@ -265,6 +284,8 @@ class BatchTagTab(BatchTabBase):
     # Elaborazione
     # ------------------------------------------------------------------
     def start_processing(self):
+        if not self.widget_massedit.maybe_save():
+            return
         files = self.prepare_run()
         if not files:
             return
@@ -324,7 +345,7 @@ class BatchTagTab(BatchTabBase):
         self.refresh_gallery()
         self.refresh_summary()
         if self.btn_mass_edit.isChecked():
-            self._toggle_mass_edit(True)
+            self._reload_mass_edit()
         self.lbl_progress_status.setText(tr("common.completed", count=processed_count))
 
         info_msg = tr("tag.done_body", count=processed_count) + "\n"

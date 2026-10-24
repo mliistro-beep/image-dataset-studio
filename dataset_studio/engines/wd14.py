@@ -12,6 +12,7 @@ from PIL import Image
 
 from ..config import CACHE_BASE_DIR
 from ..i18n import tr
+from ..images import flatten_to_rgb
 
 try:
     import onnxruntime as ort
@@ -117,7 +118,8 @@ class WD14Model:
         active_providers = [p for p in providers if p in available_providers]
 
         self.session = ort.InferenceSession(onnx_path, providers=active_providers)
-        self.provider = active_providers[0]
+        # Il provider effettivo: se CUDA non si inizializza (es. cuDNN mancante) onnxruntime ripiega sulla CPU
+        self.provider = self.session.get_providers()[0]
 
         self.tags_data = []
         with open(csv_path, "r", encoding="utf-8") as f:
@@ -140,9 +142,10 @@ class WD14Model:
 def preprocess_image(img_path_or_pil, target_size: int):
     """Ritorna (pil_originale, tensore, immagine_ridimensionata). Accetta un path o una PIL.Image."""
     if isinstance(img_path_or_pil, Image.Image):
-        img = img_path_or_pil.convert("RGB")
+        img = flatten_to_rgb(img_path_or_pil)
     else:
-        img = Image.open(img_path_or_pil).convert("RGB")
+        with Image.open(img_path_or_pil) as im:
+            img = flatten_to_rgb(im)
 
     w, h = img.size
     max_dim = max(w, h)
@@ -283,12 +286,27 @@ def assemble_caption(final_tags: List[str], config: dict) -> str:
     return ", ".join(assembled_tags)
 
 
-def merge_append(old_content: str, final_tags: List[str]) -> Tuple[str, int, int]:
-    """Logica Append: mantiene i tag esistenti e aggiunge solo i nuovi. Ritorna (testo, n_esistenti, n_nuovi)."""
+def merge_append(old_content: str, final_tags: List[str], config: Optional[dict] = None) -> Tuple[str, int, int]:
+    """Logica Append: mantiene i tag esistenti e aggiunge solo i nuovi. Ritorna (testo, n_esistenti, n_nuovi).
+    Trigger Word e Prepend mancanti vanno in testa, Postpend in coda, come nella modalità Sovrascrivi."""
+    config = config or {}
     existing_tags = [t.strip() for t in old_content.split(",") if t.strip()]
-    existing_lower = {t.lower() for t in existing_tags}
-    new_tags = [t for t in final_tags if t.lower() not in existing_lower]
-    return ", ".join(existing_tags + new_tags), len(existing_tags), len(new_tags)
+    seen = {t.lower() for t in existing_tags}
+
+    def take_new(tags):
+        added = []
+        for t in tags:
+            if t and t.lower() not in seen:
+                added.append(t)
+                seen.add(t.lower())
+        return added
+
+    trigger_word = config.get("trigger_word", "")
+    front = take_new(([trigger_word] if trigger_word else []) + list(config.get("prepend_tags", [])))
+    middle = take_new(final_tags)
+    back = take_new(config.get("postpend_tags", []))
+    new_count = len(front) + len(middle) + len(back)
+    return ", ".join(front + existing_tags + middle + back), len(existing_tags), new_count
 
 
 def tag_image(model: WD14Model, image, target_size: int, config: dict, banned_set: Optional[set] = None):

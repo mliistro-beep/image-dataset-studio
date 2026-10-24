@@ -4,6 +4,7 @@
 import sys
 
 try:
+    import shiboken6
     from PySide6.QtWidgets import QApplication, QDialog
 except ImportError:
     print("❌ PySide6 is not installed in the current environment / PySide6 non è installata.")
@@ -14,7 +15,7 @@ from dataset_studio.config import load_settings
 from dataset_studio.i18n import resolve_language, set_language
 
 
-def main():
+def main() -> int:
     app = QApplication(sys.argv)
     # La lingua va impostata prima di creare qualsiasi widget
     set_language(resolve_language(load_settings().get("language", "auto")))
@@ -24,12 +25,17 @@ def main():
 
     apply_dark_palette(app)
     if not license_accepted() and LicenseAcceptDialog().exec() != QDialog.Accepted:
-        sys.exit(0)
+        return 0
 
     window = MainWindow()
     window.show()
-    sys.exit(app.exec())
+    exit_code = app.exec()
+    # I widget vanno distrutti finché QApplication esiste: lasciati allo spegnimento dell'interprete,
+    # PySide li distrugge in ordine casuale e Python va in crash (SIGSEGV/SIGBUS/abort in ~QObject).
+    # "del window" non basta: segnali collegati al ModelManager globale e lambda la tengono in vita.
+    shiboken6.delete(window)
+    return exit_code
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -1,29 +1,22 @@
 # Image Dataset Studio — Copyright (C) 2026 Mauro Liistro
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Mass Tag Editor & Cleaner: logica copiata invariata dallo script originale, testi localizzati."""
+"""Mass Tag Editor & Cleaner: logica dello script originale, testi localizzati, avviso sulle modifiche non salvate."""
 import os
-import shutil
-import tarfile
-import zipfile
 from collections import Counter
 from typing import List
 
 from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtGui import QPixmap, QIcon, QImage
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, QLabel, QPushButton,
     QComboBox, QLineEdit, QTextEdit, QFileDialog, QMessageBox, QSplitter,
     QListWidget, QListWidgetItem, QTableWidget, QTableWidgetItem, QHeaderView
 )
 
-from ..config import TEMP_DATASET_DIR
-from ..dataset.archive import clean_dir, archive_filter
+from ..config import IMAGE_EXTENSIONS, MASS_EDIT_TEMP_DIR
+from ..dataset.archive import archive_filter, archive_stem, extract_archive, write_zip
 from ..i18n import tr
-from .widgets import NumericTableWidgetItem, ZoomableImageView
-
-
-def clean_temp_directory():
-    clean_dir(TEMP_DATASET_DIR)
+from .widgets import NumericTableWidgetItem, ThumbnailLoader, ZoomableImageView
 
 
 class MassEditWidget(QWidget):
@@ -38,6 +31,12 @@ class MassEditWidget(QWidget):
         self.dataset_data = {}  # {filename: [list_of_tags]}
         self.tag_counter = Counter()
         self.selected_tag_filter = None
+        self.checked_tags = set()   # spunte conservate anche per i tag nascosti dal filtro
+        self.dirty = False          # modifiche in memoria non ancora scritte su disco
+        self.archive_source = ""    # archivio d'origine, se il dataset è stato estratto da un archivio
+        self.gallery_items = {}     # {filename: QListWidgetItem} della galleria filtrata
+        self.thumbnails = ThumbnailLoader(64, self)
+        self.thumbnails.loaded.connect(self._on_thumbnail_loaded)
 
         self._init_ui()
 
@@ -46,26 +45,6 @@ class MassEditWidget(QWidget):
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(6)
 
-        # Barra superiore info dataset & pulsanti carica
-        #top_bar = QFrame()
-        #top_bar.setFrameShape(QFrame.StyledPanel)
-        #top_bar_layout = QHBoxLayout(top_bar)
-        #top_bar_layout.setContentsMargins(8, 4, 8, 4)
-
-        #self.lbl_dataset_stats = QLabel(tr("mass.no_dataset"))
-        #self.lbl_dataset_stats.setStyleSheet("font-weight: bold; color: #00e5ff;")
-        #top_bar_layout.addWidget(self.lbl_dataset_stats, stretch=1)
-
-        #self.btn_load_folder = QPushButton(tr("mass.load_folder"))
-        #self.btn_load_folder.clicked.connect(self._on_click_load_folder)
-        #top_bar_layout.addWidget(self.btn_load_folder)
-
-        #self.btn_load_archive = QPushButton(tr("mass.load_archive"))
-        #self.btn_load_archive.clicked.connect(self._on_click_load_archive)
-        #top_bar_layout.addWidget(self.btn_load_archive)
-
-        #layout.addWidget(top_bar)
-
         # Main Splitter: Sinistra (Tabella Tag & Bulk Tools) | Destra (Galleria Filtrata & Ispettore)
         main_splitter = QSplitter(Qt.Horizontal)
 
@@ -73,13 +52,6 @@ class MassEditWidget(QWidget):
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
-
-        #TESt
-
-        #top_bar = QFrame()
-        #top_bar.setFrameShape(QFrame.StyledPanel)
-        ##top_bar_layout = QHBoxLayout(top_bar)
-        #top_bar_layout.setContentsMargins(8, 4, 8, 4)
 
         self.lbl_dataset_stats = QLabel(tr("mass.no_dataset"))
         self.lbl_dataset_stats.setStyleSheet("font-weight: bold; color: #00e5ff;")
@@ -92,8 +64,6 @@ class MassEditWidget(QWidget):
         self.btn_load_archive = QPushButton(tr("mass.load_archive"))
         self.btn_load_archive.clicked.connect(self._on_click_load_archive)
         left_layout.addWidget(self.btn_load_archive)
-
-        #finetest
 
         # Filtro e Ricerca Tag
         filter_group = QGroupBox(tr("mass.filter_box"))
@@ -126,6 +96,7 @@ class MassEditWidget(QWidget):
         self.table_tags.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_tags.setSortingEnabled(True)
         self.table_tags.itemSelectionChanged.connect(self._on_tag_table_selection_changed)
+        self.table_tags.itemChanged.connect(self._on_tag_item_changed)
 
         table_layout.addWidget(self.table_tags)
 
@@ -252,9 +223,12 @@ class MassEditWidget(QWidget):
 
         layout.addWidget(main_splitter)
 
-    def load_dataset(self, folder_path: str, image_files: List[str]):
-        """Carica il dataset nella modalità Mass Edit."""
+    def load_dataset(self, folder_path: str, image_files: List[str], archive_source: str = ""):
+        """Carica il dataset nella modalità Mass Edit (le modifiche in memoria vengono scartate)."""
         self.image_folder = folder_path
+        self.archive_source = archive_source
+        self.checked_tags = set()
+        self.dirty = False
         self.image_files = sorted(image_files)
         self.dataset_data = {}
         self.tag_counter = Counter()
@@ -290,6 +264,7 @@ class MassEditWidget(QWidget):
 
     def refresh_tag_table(self):
         """Popola la tabella dei tag con frequenze e percentuali."""
+        self.table_tags.blockSignals(True)
         self.table_tags.setSortingEnabled(False)
         self.table_tags.setRowCount(0)
 
@@ -312,7 +287,7 @@ class MassEditWidget(QWidget):
             # Colonna 0: Checkbox
             chk_item = QTableWidgetItem()
             chk_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-            chk_item.setCheckState(Qt.Unchecked)
+            chk_item.setCheckState(Qt.Checked if tag in self.checked_tags else Qt.Unchecked)
             self.table_tags.setItem(row, 0, chk_item)
 
             # Colonna 1: Nome Tag
@@ -335,6 +310,22 @@ class MassEditWidget(QWidget):
             row += 1
 
         self.table_tags.setSortingEnabled(True)
+        self.table_tags.blockSignals(False)
+        self.checked_tags &= set(self.tag_counter)
+
+    def _on_tag_item_changed(self, item: QTableWidgetItem):
+        if item.column() != 0:
+            return
+        tag_item = self.table_tags.item(item.row(), 1)
+        if tag_item is None:
+            return
+        if item.checkState() == Qt.Checked:
+            self.checked_tags.add(tag_item.text())
+        else:
+            self.checked_tags.discard(tag_item.text())
+
+    def _checked_tags(self) -> List[str]:
+        return [tag for tag, _ in self.tag_counter.most_common() if tag in self.checked_tags]
 
     def _filter_tag_table(self):
         self.refresh_tag_table()
@@ -389,23 +380,22 @@ class MassEditWidget(QWidget):
         else:
             self.lbl_gallery_filter_status.setText(tr("mass.all_images", total=total_all))
 
+        self.gallery_items = {}
         for img_file in matching_files:
             item = QListWidgetItem(img_file)
-            img_path = os.path.join(self.image_folder, img_file)
-            if os.path.exists(img_path):
-                try:
-                    pixmap = QPixmap(img_path)
-                    if not pixmap.isNull():
-                        icon = QIcon(pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                        item.setIcon(icon)
-                except Exception:
-                    pass
+            self.gallery_items[img_file] = item
             self.list_gallery_mass.addItem(item)
 
         self.list_gallery_mass.blockSignals(False)
+        self.thumbnails.load((f, os.path.join(self.image_folder, f)) for f in matching_files)
 
         if self.list_gallery_mass.count() > 0:
             self.list_gallery_mass.setCurrentRow(0)
+
+    def _on_thumbnail_loaded(self, filename: str, image: QImage):
+        item = self.gallery_items.get(filename)
+        if item is not None:
+            item.setIcon(QIcon(QPixmap.fromImage(image)))
 
     def _on_gallery_selection_changed(self):
         current_item = self.list_gallery_mass.currentItem()
@@ -438,6 +428,13 @@ class MassEditWidget(QWidget):
         new_text = self.txt_single_tags.toPlainText().strip()
         new_tags = [t.strip() for t in new_text.split(",") if t.strip()]
 
+        txt_filename = os.path.splitext(filename)[0] + ".txt"
+        try:
+            self._write_tags(filename, new_tags)
+        except OSError as e:
+            self.log_signal.emit(tr("mass.log_save_error", file=txt_filename, error=e))
+            QMessageBox.critical(self, tr("common.error"), tr("mass.log_save_error", file=txt_filename, error=e))
+            return
         self.dataset_data[filename] = new_tags
         self.log_signal.emit(tr("mass.log_photo_saved", file=filename, count=len(new_tags)))
         self.refresh_tag_table()
@@ -473,6 +470,7 @@ class MassEditWidget(QWidget):
                 self.dataset_data[img_file] = final_tags
                 replaced_count += 1
 
+        self.dirty |= replaced_count > 0
         self.log_signal.emit(tr("mass.log_replaced", old=old_tag, new=new_tag_str, count=replaced_count))
         self.refresh_tag_table()
         self.refresh_gallery()
@@ -499,17 +497,13 @@ class MassEditWidget(QWidget):
                     self.dataset_data[img_file] = tags + new_additions
                 added_count += 1
 
+        self.dirty |= added_count > 0
         self.log_signal.emit(tr("mass.log_added", tags=add_tag_str, count=added_count))
         self.refresh_tag_table()
         self.refresh_gallery()
 
     def _bulk_delete_checked_tags(self):
-        checked_tags = []
-        for r in range(self.table_tags.rowCount()):
-            chk_item = self.table_tags.item(r, 0)
-            tag_item = self.table_tags.item(r, 1)
-            if chk_item and tag_item and chk_item.checkState() == Qt.Checked:
-                checked_tags.append(tag_item.text())
+        checked_tags = self._checked_tags()
 
         if not checked_tags:
             QMessageBox.information(self, tr("mass.none_checked_title"), tr("mass.none_checked_body"))
@@ -535,6 +529,7 @@ class MassEditWidget(QWidget):
                 self.dataset_data[img_file] = new_tags
                 modified_files += 1
 
+        self.dirty |= modified_files > 0
         self.log_signal.emit(tr("mass.log_deleted", count=len(checked_tags), files=modified_files))
         self.refresh_tag_table()
         self.refresh_gallery()
@@ -554,39 +549,84 @@ class MassEditWidget(QWidget):
                 self.dataset_data[img_file] = new_tags
                 cleaned_files += 1
 
+        self.dirty |= cleaned_files > 0
         self.log_signal.emit(tr("mass.log_cleaned", files=cleaned_files))
         self.refresh_tag_table()
         self.refresh_gallery()
 
-    def save_all_changes_to_disk(self):
-        """Scrive permanentemente le modifiche dei tag sui file .txt su disco."""
+    def _write_tags(self, img_file: str, tags: List[str]):
+        txt_path = os.path.join(self.image_folder, os.path.splitext(img_file)[0] + ".txt")
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(", ".join(tags))
+
+    def save_all_changes_to_disk(self, quiet: bool = False) -> bool:
+        """Scrive permanentemente le modifiche dei tag sui file .txt su disco. True se tutto è stato salvato."""
         if not self.image_folder or not os.path.exists(self.image_folder):
             QMessageBox.warning(self, tr("mass.no_dataset_title"), tr("mass.no_dataset_body"))
-            return
+            return False
 
         written_count = 0
+        errors = 0
         for img_file, tags in self.dataset_data.items():
-            txt_filename = os.path.splitext(img_file)[0] + ".txt"
-            txt_path = os.path.join(self.image_folder, txt_filename)
-            caption_str = ", ".join(tags)
-
             try:
-                with open(txt_path, "w", encoding="utf-8") as f:
-                    f.write(caption_str)
+                self._write_tags(img_file, tags)
                 written_count += 1
-            except Exception as e:
-                self.log_signal.emit(tr("mass.log_save_error", file=txt_filename, error=e))
+            except OSError as e:
+                errors += 1
+                self.log_signal.emit(tr("mass.log_save_error", file=os.path.splitext(img_file)[0] + ".txt", error=e))
 
         self.log_signal.emit(tr("mass.log_saved_all", count=written_count))
-        QMessageBox.information(self, tr("mass.saved_title"), tr("mass.saved_body", count=written_count))
+        if errors:
+            return False
+        self.dirty = False
+        # Un archivio estratto vive in una cartella temporanea: va riesportato o le modifiche si perdono
+        if self.archive_source:
+            self._export_archive()
+        if not quiet:
+            QMessageBox.information(self, tr("mass.saved_title"), tr("mass.saved_body", count=written_count))
         self.dataset_updated_signal.emit()
+        return True
+
+    def _export_archive(self):
+        default_path = os.path.join(os.path.dirname(self.archive_source),
+                                    archive_stem(self.archive_source) + "_edited.zip")
+        path, _ = QFileDialog.getSaveFileName(self, tr("mass.export_title"), default_path, "ZIP (*.zip)")
+        if not path:
+            self.log_signal.emit(tr("mass.log_export_skipped", path=self.image_folder))
+            return
+        if not path.lower().endswith(".zip"):
+            path += ".zip"
+        try:
+            write_zip(self.image_folder, path)
+        except OSError as e:
+            QMessageBox.critical(self, tr("source.archive_error_title"), tr("common.archive_error", error=e))
+            return
+        self.log_signal.emit(tr("mass.log_exported", path=path))
+
+    def maybe_save(self, allow_cancel: bool = True) -> bool:
+        """Chiede cosa fare delle modifiche non salvate. False se l'utente annulla (o il salvataggio fallisce)."""
+        if not self.dirty:
+            return True
+        buttons = QMessageBox.Save | QMessageBox.Discard
+        if allow_cancel:
+            buttons |= QMessageBox.Cancel
+        answer = QMessageBox.question(self, tr("mass.unsaved_title"), tr("mass.unsaved_body"), buttons, QMessageBox.Save)
+        if answer == QMessageBox.Save:
+            return self.save_all_changes_to_disk(quiet=True) or not allow_cancel
+        if answer == QMessageBox.Discard:
+            self.dirty = False
+            self.log_signal.emit(tr("mass.log_discarded"))
+            return True
+        return False
 
     def _on_click_load_folder(self):
+        if not self.maybe_save():
+            return
         folder = QFileDialog.getExistingDirectory(self, tr("mass.pick_folder"))
         if not folder:
             return
 
-        jpg_files = [f for f in os.listdir(folder) if os.path.splitext(f)[1].lower() in {".jpg", ".jpeg", ".png", ".webp"}]
+        jpg_files = [f for f in os.listdir(folder) if os.path.splitext(f)[1].lower() in IMAGE_EXTENSIONS]
         if not jpg_files:
             QMessageBox.warning(self, tr("common.no_images_title"), tr("source.no_images_folder"))
             return
@@ -595,56 +635,19 @@ class MassEditWidget(QWidget):
         self.log_signal.emit(tr("mass.log_folder", path=folder, count=len(jpg_files)))
 
     def _on_click_load_archive(self):
+        if not self.maybe_save():
+            return
         file_path, _ = QFileDialog.getOpenFileName(self, tr("source.pick_archive"), "", archive_filter())
         if not file_path:
             return
 
-        extracted_imgs = []
         try:
-            clean_temp_directory()
-
-            if zipfile.is_zipfile(file_path):
-                with zipfile.ZipFile(file_path, 'r') as zf:
-                    members = [m for m in zf.infolist() if not m.is_dir()]
-                    for m in members:
-                        ext = os.path.splitext(m.filename)[1].lower()
-                        bname = os.path.basename(m.filename)
-                        if ext in {".jpg", ".jpeg", ".png", ".webp"}:
-                            target_path = os.path.join(TEMP_DATASET_DIR, bname)
-                            with zf.open(m) as src_f, open(target_path, "wb") as dst_f:
-                                shutil.copyfileobj(src_f, dst_f)
-                            extracted_imgs.append(bname)
-                        elif ext == ".txt":
-                            target_path = os.path.join(TEMP_DATASET_DIR, bname)
-                            with zf.open(m) as src_f, open(target_path, "wb") as dst_f:
-                                shutil.copyfileobj(src_f, dst_f)
-
-            elif tarfile.is_tarfile(file_path):
-                with tarfile.open(file_path, 'r:*') as tf:
-                    members = [m for m in tf.getmembers() if m.isfile()]
-                    for m in members:
-                        ext = os.path.splitext(m.name)[1].lower()
-                        bname = os.path.basename(m.name)
-                        if ext in {".jpg", ".jpeg", ".png", ".webp"}:
-                            src = tf.extractfile(m)
-                            if src:
-                                target_path = os.path.join(TEMP_DATASET_DIR, bname)
-                                with open(target_path, "wb") as dst:
-                                    shutil.copyfileobj(src, dst)
-                                extracted_imgs.append(bname)
-                        elif ext == ".txt":
-                            src = tf.extractfile(m)
-                            if src:
-                                target_path = os.path.join(TEMP_DATASET_DIR, bname)
-                                with open(target_path, "wb") as dst:
-                                    shutil.copyfileobj(src, dst)
-
-            if extracted_imgs:
-                self.load_dataset(TEMP_DATASET_DIR, extracted_imgs)
-                self.log_signal.emit(tr("mass.log_archive", name=os.path.basename(file_path), count=len(extracted_imgs)))
-            else:
-                QMessageBox.warning(self, tr("mass.empty_archive_title"), tr("source.no_images_archive"))
-
+            extracted_imgs = extract_archive(file_path, MASS_EDIT_TEMP_DIR)
         except Exception as e:
             QMessageBox.critical(self, tr("source.archive_error_title"), tr("source.archive_error_body", error=e))
-
+            return
+        if extracted_imgs:
+            self.load_dataset(MASS_EDIT_TEMP_DIR, extracted_imgs, archive_source=file_path)
+            self.log_signal.emit(tr("mass.log_archive", name=os.path.basename(file_path), count=len(extracted_imgs)))
+        else:
+            QMessageBox.warning(self, tr("mass.empty_archive_title"), tr("source.no_images_archive"))
