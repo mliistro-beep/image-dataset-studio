@@ -280,7 +280,7 @@ _ENTRIES = [
     ("mass.all_images", "🖼️ Tutte le immagini: {total}", "🖼️ All images: {total}"),
     ("mass.no_photo", "Nessuna foto", "No image"),
     ("mass.photo_read_error", "Errore lettura foto", "Image read error"),
-    ("mass.log_photo_saved", "💾 Tag aggiornati per {file} ({count} tag)", "💾 Tags updated for {file} ({count} tags)"),
+    ("mass.log_photo_saved", "💾 Tag salvati su disco per {file} ({count} tag)", "💾 Tags saved to disk for {file} ({count} tags)"),
     ("mass.empty_fields_title", "Campi Vuoti", "Empty Fields"),
     ("mass.empty_fields_body", "Inserisci sia il vecchio tag che il nuovo tag da sostituire.", "Enter both the old tag and the new tag to replace it with."),
     ("mass.log_replaced", "✏️ Sostituito tag '{old}' -> '{new}' in {count} file.", "✏️ Replaced tag '{old}' -> '{new}' in {count} files."),
@@ -304,6 +304,14 @@ _ENTRIES = [
     ("mass.log_folder", "📁 Caricata cartella in Mass Edit: {path} ({count} immagini)", "📁 Folder loaded in Mass Edit: {path} ({count} images)"),
     ("mass.log_archive", "📦 Archivio estratto in Mass Edit: {name} ({count} immagini)", "📦 Archive extracted in Mass Edit: {name} ({count} images)"),
     ("mass.empty_archive_title", "Archivio Vuoto", "Empty Archive"),
+    ("mass.unsaved_title", "Modifiche non salvate", "Unsaved changes"),
+    ("mass.unsaved_body", "Mass Edit contiene modifiche non ancora scritte su disco. Vuoi salvarle?",
+     "Mass Edit has changes that are not yet written to disk. Do you want to save them?"),
+    ("mass.log_discarded", "🗑️ Modifiche di Mass Edit scartate.", "🗑️ Mass Edit changes discarded."),
+    ("mass.export_title", "Salva l'archivio modificato", "Save the edited archive"),
+    ("mass.log_exported", "📦 Archivio modificato salvato: {path}", "📦 Edited archive saved: {path}"),
+    ("mass.log_export_skipped", "⚠️ Archivio non esportato: le modifiche restano solo nella cartella temporanea {path} e andranno perse al prossimo caricamento.",
+     "⚠️ Archive not exported: the changes only exist in the temporary folder {path} and will be lost on the next load."),
 
     # --- Batch Caption -------------------------------------------------------------
     ("cap.editor_title", "✍️ Caption Generata ed Editing Manuale (.txt)", "✍️ Generated Caption and Manual Editing (.txt)"),

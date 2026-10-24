@@ -14,6 +14,7 @@ from .config import AVAILABLE_MODELS
 from .dataset import layout
 from .engines import wd14
 from .i18n import tr
+from .images import flatten_to_rgb
 from .model_manager import manager
 
 
@@ -105,6 +106,10 @@ class BatchTaggingThread(_BaseWorker):
         stats = {"mode": self.config["write_mode"], "total_written": 0, "new_added": 0, "existing_kept": 0}
         try:
             model = manager.get_wd14(self.model_title, self.progress_signal.emit, self.log_signal.emit, self._should_stop)
+        except InterruptedError:
+            # Stop premuto durante il download: non è un errore
+            self.finished_signal.emit(0, stats, "")
+            return
         except Exception as e:
             self.finished_signal.emit(0, stats, tr("worker.model_load_error", error=e))
             return
@@ -137,7 +142,7 @@ class BatchTaggingThread(_BaseWorker):
                     with open(txt_path, "r", encoding="utf-8") as f:
                         old_content = f.read().strip()
                     if old_content:
-                        caption_str, num_existing, num_new = wd14.merge_append(old_content, final_tags)
+                        caption_str, num_existing, num_new = wd14.merge_append(old_content, final_tags, self.config)
                         num_total = num_existing + num_new
                         stats["existing_kept"] += num_existing
                         stats["new_added"] += num_new
@@ -184,7 +189,10 @@ class BatchCaptionThread(_BaseWorker):
         p = self.vlm_params
         try:
             backend = manager.get_vlm(p["model_key"], p["device"], p["low_memory"],
-                                      self.progress_signal.emit, self.log_signal.emit)
+                                      self.progress_signal.emit, self.log_signal.emit, self._should_stop)
+        except InterruptedError:
+            self.finished_signal.emit(0, "")
+            return
         except Exception as e:
             self.finished_signal.emit(0, tr("worker.vlm_load_error", error=e))
             return
@@ -206,7 +214,7 @@ class BatchCaptionThread(_BaseWorker):
                 layout.sync_image(filename, self.original_dir, self.target_dir, seed_txt=False)
                 img_path = os.path.join(self.target_dir, filename)
                 with Image.open(img_path) as im:
-                    image = im.convert("RGB")
+                    image = flatten_to_rgb(im)
 
                 caption = backend.caption(image, instruction, max_tokens)
                 if prefix:
@@ -264,7 +272,7 @@ class SingleAnalysisThread(_BaseWorker):
     def _run_caption(self) -> str:
         p = self.vlm_params
         backend = manager.get_vlm(p["model_key"], p["device"], p["low_memory"],
-                                  self.progress_signal.emit, self.log_signal.emit)
+                                  self.progress_signal.emit, self.log_signal.emit, self._should_stop)
         self.progress_signal.emit(tr("worker.single_captioning"), 100.0)
         return backend.caption(self.image, self.vlm_config["instruction"], self.vlm_config["max_tokens"])
 

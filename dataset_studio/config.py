@@ -107,6 +107,8 @@ RENAME_MAP_FILE = "rename_map.csv"
 # Il percorso resta quello dello script originale per riusare i modelli già scaricati
 CACHE_BASE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "wd14_tagger")
 TEMP_DATASET_DIR = os.path.join(CACHE_BASE_DIR, "temp_dataset")
+# Cartella separata: l'import di un archivio nelle schede Batch svuota TEMP_DATASET_DIR
+MASS_EDIT_TEMP_DIR = os.path.join(CACHE_BASE_DIR, "temp_mass_edit")
 SETTINGS_FILE = os.path.join(CACHE_BASE_DIR, "settings.json")
 
 IS_MAC = platform.system() == "Darwin"
