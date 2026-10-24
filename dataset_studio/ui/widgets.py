@@ -1,9 +1,69 @@
 # Image Dataset Studio — Copyright (C) 2026 Mauro Liistro
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Widget riutilizzabili, copiati invariati dallo script originale."""
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap, QColor, QWheelEvent, QPainter
+"""Widget riutilizzabili, copiati invariati dallo script originale, e caricamento miniature in background."""
+import os
+from typing import Dict, Iterable, Tuple
+
+from PySide6.QtCore import Qt, QObject, QRunnable, QThreadPool, Signal, Slot
+from PySide6.QtGui import QPixmap, QColor, QWheelEvent, QPainter, QImage, QImageReader
 from PySide6.QtWidgets import QTableWidgetItem, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem
+
+
+class _ThumbnailTask(QRunnable):
+    def __init__(self, loader: "ThumbnailLoader", generation: int, key: str, path: str, mtime: float):
+        super().__init__()
+        self.loader, self.generation, self.key, self.path, self.mtime = loader, generation, key, path, mtime
+
+    def run(self):
+        # QImage (a differenza di QPixmap) si può usare fuori dal thread della GUI.
+        # setScaledSize fa decodificare i JPEG già ridotti: molto più veloce che caricare l'immagine intera.
+        reader = QImageReader(self.path)
+        reader.setAutoTransform(True)
+        size = reader.size()
+        if size.isValid():
+            size.scale(self.loader.size, self.loader.size, Qt.KeepAspectRatio)
+            reader.setScaledSize(size)
+        image = reader.read()
+        self.loader._task_done.emit(self.generation, self.key, self.path, self.mtime, image)
+
+
+class ThumbnailLoader(QObject):
+    """Genera le miniature delle gallerie in un pool di thread, con cache per percorso e data di modifica.
+    Ogni chiamata a load() annulla le richieste precedenti non ancora consegnate."""
+    loaded = Signal(str, QImage)   # chiave, miniatura
+    _task_done = Signal(int, str, str, float, QImage)
+
+    def __init__(self, size: int, parent=None):
+        super().__init__(parent)
+        self.size = size
+        self.generation = 0
+        self._cache: Dict[str, Tuple[float, QImage]] = {}
+        self._pool = QThreadPool(self)
+        self._pool.setMaxThreadCount(max(1, min(4, QThreadPool.globalInstance().maxThreadCount() // 2)))
+        self._task_done.connect(self._on_task_done)
+
+    def load(self, items: Iterable[Tuple[str, str]]):
+        """items: coppie (chiave, percorso). Le miniature in cache vengono consegnate subito."""
+        self.generation += 1
+        self._pool.clear()
+        for key, path in items:
+            try:
+                mtime = os.path.getmtime(path)
+            except OSError:
+                continue
+            cached = self._cache.get(path)
+            if cached and cached[0] == mtime:
+                self.loaded.emit(key, cached[1])
+            else:
+                self._pool.start(_ThumbnailTask(self, self.generation, key, path, mtime))
+
+    @Slot(int, str, str, float, QImage)
+    def _on_task_done(self, generation: int, key: str, path: str, mtime: float, image: QImage):
+        if image.isNull():
+            return
+        self._cache[path] = (mtime, image)
+        if generation == self.generation:
+            self.loaded.emit(key, image)
 
 
 class NumericTableWidgetItem(QTableWidgetItem):

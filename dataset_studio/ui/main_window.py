@@ -1,6 +1,7 @@
 # Image Dataset Studio — Copyright (C) 2026 Mauro Liistro
 # SPDX-License-Identifier: AGPL-3.0-only
 """Finestra principale: tre schede + log condiviso + stato del modello in memoria."""
+import os
 import sys
 
 from PySide6.QtCore import Qt, QProcess
@@ -137,16 +138,25 @@ class MainWindow(QMainWindow):
             QApplication.quit()
 
     def closeEvent(self, event):
+        if not self.tab_tag.widget_massedit.maybe_save():
+            event.ignore()
+            return
         if self._busy():
             answer = QMessageBox.question(self, tr("common.busy_title"), tr("main.quit_busy"),
                                           QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if answer != QMessageBox.Yes:
                 event.ignore()
                 return
-            for w in (self.tab_tag.worker, self.tab_caption.worker, self.tab_single.worker):
-                if w is not None and w.isRunning():
-                    w.request_stop()
-                    w.wait(30000)
+            workers = [w for w in (self.tab_tag.worker, self.tab_caption.worker, self.tab_single.worker)
+                       if w is not None and w.isRunning()]
+            for w in workers:
+                w.request_stop()
+            for w in workers:
+                w.wait(30000)
+            if any(w.isRunning() for w in workers):
+                # Un caricamento o un'inferenza non si possono interrompere a metà: distruggere un QThread
+                # ancora attivo farebbe abortire Qt, quindi si termina il processo direttamente
+                os._exit(0)
         event.accept()
 
 

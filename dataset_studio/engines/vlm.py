@@ -8,6 +8,7 @@ from PIL import Image
 
 from ..config import VLM_MODELS, FLORENCE_TASKS, IS_MAC
 from ..i18n import tr
+from ..images import flatten_to_rgb
 
 try:
     import torch
@@ -57,8 +58,11 @@ def free_torch_memory():
 
 
 def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[str], None],
-                      progress_cb: Callable[[str, float], None]):
-    """Scarica (o verifica in cache) il repository HF, inviando l'avanzamento all'interfaccia."""
+                      progress_cb: Callable[[str, float], None],
+                      should_stop: Callable[[], bool] = lambda: False):
+    """Scarica (o verifica in cache) il repository HF, inviando l'avanzamento all'interfaccia.
+    InterruptedError se viene richiesto lo stop."""
+    import threading
     from huggingface_hub import snapshot_download
     from tqdm.auto import tqdm as base_tqdm
 
@@ -69,7 +73,8 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
 
         def update(self, n=1):
             super().update(n)
-            if self.total:
+            # Dopo uno stop il download continua in background: l'interfaccia non va più aggiornata
+            if self.total and not should_stop():
                 pct = self.n / self.total * 100
                 unit_mb = self.unit == "B"
                 if unit_mb:
@@ -79,11 +84,29 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
                     msg = tr("vlm.download_files", repo=repo_id, done=self.n, total=self.total)
                 progress_cb(msg, pct)
 
+    # snapshot_download non è interrompibile: gira in un thread separato e qui si controlla lo stop.
+    # Se si ferma, il download prosegue in background fino alla chiusura dell'app; i file parziali
+    # restano nella cache HF e vengono ripresi al tentativo successivo.
+    result = {}
+
+    def _run():
+        try:
+            try:
+                snapshot_download(repo_id, revision=revision, tqdm_class=_ProgressTqdm)
+            except TypeError:
+                snapshot_download(repo_id, revision=revision)
+        except BaseException as e:  # rilanciata nel thread chiamante
+            result["error"] = e
+
     log_cb(tr("vlm.download_start", repo=repo_id))
-    try:
-        snapshot_download(repo_id, revision=revision, tqdm_class=_ProgressTqdm)
-    except TypeError:
-        snapshot_download(repo_id, revision=revision)
+    thread = threading.Thread(target=_run, name=f"hf-download-{repo_id}", daemon=True)
+    thread.start()
+    while thread.is_alive():
+        thread.join(0.3)
+        if should_stop():
+            raise InterruptedError(tr("wd14.download_cancelled"))
+    if "error" in result:
+        raise result["error"]
     log_cb(tr("vlm.download_done", repo=repo_id))
 
 
@@ -98,7 +121,7 @@ class VLMBackend:
         self.model = None
         self.processor = None
 
-    def load(self, log_cb, progress_cb):
+    def load(self, log_cb, progress_cb, should_stop=lambda: False):
         raise NotImplementedError
 
     def caption(self, image: Image.Image, instruction: str, max_new_tokens: int = 256) -> str:
@@ -114,10 +137,10 @@ class Florence2Backend(VLMBackend):
     """Florence-2 (supporto nativo transformers). Accetta solo task token, non prompt liberi."""
     supports_free_prompt = False
 
-    def load(self, log_cb, progress_cb):
+    def load(self, log_cb, progress_cb, should_stop=lambda: False):
         from transformers import AutoProcessor, Florence2ForConditionalGeneration
         repo = self.info["repo"]
-        download_snapshot(repo, None, log_cb, progress_cb)
+        download_snapshot(repo, None, log_cb, progress_cb, should_stop)
         progress_cb(tr("vlm.loading", model=self.info['label']), 100.0)
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
         self.processor = AutoProcessor.from_pretrained(repo)
@@ -126,7 +149,7 @@ class Florence2Backend(VLMBackend):
 
     def caption(self, image, instruction, max_new_tokens=256):
         task = instruction if instruction in FLORENCE_TASKS.values() else "<MORE_DETAILED_CAPTION>"
-        image = image.convert("RGB")
+        image = flatten_to_rgb(image)
         inputs = self.processor(text=task, images=image, return_tensors="pt").to(self.device, self.dtype)
         with torch.inference_mode():
             generated_ids = self.model.generate(**inputs, max_new_tokens=max_new_tokens, num_beams=3, do_sample=False)
@@ -137,11 +160,11 @@ class Florence2Backend(VLMBackend):
 
 
 class Moondream2Backend(VLMBackend):
-    def load(self, log_cb, progress_cb):
+    def load(self, log_cb, progress_cb, should_stop=lambda: False):
         from transformers import AutoModelForCausalLM
         repo = self.info["repo"]
         revision = self.info.get("revision")
-        download_snapshot(repo, revision, log_cb, progress_cb)
+        download_snapshot(repo, revision, log_cb, progress_cb, should_stop)
         progress_cb(tr("vlm.loading", model=self.info['label']), 100.0)
         # bf16 dimezza la RAM (~3.7 GB invece di ~7.4 GB): obbligatorio con 8 GB di RAM
         if self.device == "cuda" or self.low_memory:
@@ -155,7 +178,7 @@ class Moondream2Backend(VLMBackend):
         self.model.eval()
 
     def caption(self, image, instruction, max_new_tokens=256):
-        image = image.convert("RGB")
+        image = flatten_to_rgb(image)
         settings = {"max_tokens": max_new_tokens}
         with torch.inference_mode():
             if instruction.strip():
@@ -168,10 +191,10 @@ class Moondream2Backend(VLMBackend):
 class JoyCaptionBackend(VLMBackend):
     SYSTEM_PROMPT = "You are a helpful image captioner."
 
-    def load(self, log_cb, progress_cb):
+    def load(self, log_cb, progress_cb, should_stop=lambda: False):
         from transformers import AutoProcessor, BitsAndBytesConfig, LlavaForConditionalGeneration
         repo = self.info["repo"]
-        download_snapshot(repo, None, log_cb, progress_cb)
+        download_snapshot(repo, None, log_cb, progress_cb, should_stop)
         progress_cb(tr("vlm.loading_vram", model=self.info['label']), 100.0)
         quant_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -195,7 +218,7 @@ class JoyCaptionBackend(VLMBackend):
         ]
         # La combinazione apply_chat_template(tokenize=False) + processor() evita BOS duplicati
         convo_string = self.processor.apply_chat_template(convo, tokenize=False, add_generation_prompt=True)
-        inputs = self.processor(text=[convo_string], images=[image.convert("RGB")], return_tensors="pt").to("cuda")
+        inputs = self.processor(text=[convo_string], images=[flatten_to_rgb(image)], return_tensors="pt").to("cuda")
         inputs["pixel_values"] = inputs["pixel_values"].to(torch.bfloat16)
         with torch.inference_mode():
             generate_ids = self.model.generate(
