@@ -88,3 +88,15 @@ def test_download_rename_failure_removes_tmp(tmp_path, monkeypatch):
 
     monkeypatch.setattr(wd14.os, "replace", real_replace)
     assert list(tmp_path.iterdir()) == []
+
+
+def test_stop_is_not_masked_when_tmp_cleanup_fails(tmp_path, monkeypatch):
+    monkeypatch.setattr(wd14.urllib.request, "urlopen", fake_urlopen(FakeResponse(b"x" * 1000), []))
+
+    def fail_remove(path):
+        raise PermissionError("locked")
+    monkeypatch.setattr(wd14.os, "remove", fail_remove)
+
+    # Lo Stop dell'utente deve restare InterruptedError, non diventare un errore da mostrare
+    with pytest.raises(InterruptedError):
+        download(tmp_path / "model.onnx", should_stop=lambda: True)
