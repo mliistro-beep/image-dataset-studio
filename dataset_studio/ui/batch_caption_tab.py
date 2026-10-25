@@ -276,7 +276,14 @@ class BatchCaptionTab(BatchTabBase):
         self.rb_append = QRadioButton(tr("cap.append"))
         opts.addWidget(self.rb_overwrite)
         opts.addWidget(self.rb_append)
+        # Solo dopo addWidget: prima i due pulsanti non hanno un genitore comune e non si escludono a vicenda
+        saved = load_settings()
+        self.rb_append.setChecked(saved.get("caption_write_mode") == "append")
+        self.rb_append.toggled.connect(
+            lambda on: save_settings({"caption_write_mode": "append" if on else "overwrite"}))
         self.chk_compress_output = QCheckBox(tr("common.compress"))
+        self.chk_compress_output.setChecked(bool(saved.get("caption_compress_output", False)))
+        self.chk_compress_output.toggled.connect(lambda on: save_settings({"caption_compress_output": on}))
         opts.addWidget(self.chk_compress_output)
         sidebar_layout.addWidget(group_opts)
 

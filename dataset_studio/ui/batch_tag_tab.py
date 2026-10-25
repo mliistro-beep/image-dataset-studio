@@ -81,6 +81,7 @@ class BatchTagTab(BatchTabBase):
         opts_layout = QVBoxLayout(group_opts)
         self.chk_underscore = QCheckBox(tr("tag.underscore"))
         self.chk_underscore.setChecked(True)
+        self.chk_underscore.toggled.connect(self._save_settings)
         opts_layout.addWidget(self.chk_underscore)
         self.chk_exclude_ratings = QCheckBox(tr("tag.exclude_ratings"))
         self.chk_exclude_ratings.setChecked(True)
@@ -111,10 +112,12 @@ class BatchTagTab(BatchTabBase):
         self.rb_overwrite = QRadioButton(tr("common.overwrite"))
         self.rb_overwrite.setChecked(True)
         self.rb_append = QRadioButton(tr("tag.append"))
+        self.rb_overwrite.toggled.connect(self._save_settings)
         opts_layout.addWidget(self.rb_overwrite)
         opts_layout.addWidget(self.rb_append)
 
         self.chk_compress_output = QCheckBox(tr("common.compress"))
+        self.chk_compress_output.toggled.connect(self._save_settings)
         opts_layout.addWidget(self.chk_compress_output)
         sidebar_layout.addWidget(group_opts)
 
@@ -247,6 +250,9 @@ class BatchTagTab(BatchTabBase):
         self.entry_postpend.setText(settings.get("postpend_tags_str", ""))
         self.spin_min_tags.setValue(int(settings.get("min_tags", 10)))
         self.spin_max_tags.setValue(int(settings.get("max_tags", 0)))
+        self.chk_underscore.setChecked(bool(settings.get("replace_underscore", True)))
+        self.rb_append.setChecked(settings.get("tag_write_mode") == "append")
+        self.chk_compress_output.setChecked(bool(settings.get("tag_compress_output", False)))
 
     def _save_settings(self):
         if self._loading_settings:
@@ -262,6 +268,9 @@ class BatchTagTab(BatchTabBase):
             "postpend_tags_str": self.entry_postpend.text(),
             "min_tags": self.spin_min_tags.value(),
             "max_tags": self.spin_max_tags.value(),
+            "replace_underscore": self.chk_underscore.isChecked(),
+            "tag_write_mode": "append" if self.rb_append.isChecked() else "overwrite",
+            "tag_compress_output": self.chk_compress_output.isChecked(),
         })
 
     def tagging_config(self) -> dict:
