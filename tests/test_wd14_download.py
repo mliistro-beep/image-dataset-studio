@@ -72,3 +72,19 @@ def test_download_truncated_response_is_an_error(tmp_path, monkeypatch):
         download(tmp_path / "model.onnx")
 
     assert list(tmp_path.iterdir()) == []
+
+
+def test_download_rename_failure_removes_tmp(tmp_path, monkeypatch):
+    monkeypatch.setattr(wd14.urllib.request, "urlopen", fake_urlopen(FakeResponse(b"x" * 1000), []))
+    real_replace = wd14.os.replace
+
+    def fail_replace(src, dst):
+        raise OSError("cross-device link")
+    monkeypatch.setattr(wd14.os, "replace", fail_replace)
+    monkeypatch.setattr(wd14.os, "rename", fail_replace)
+
+    with pytest.raises(OSError):
+        download(tmp_path / "model.onnx")
+
+    monkeypatch.setattr(wd14.os, "replace", real_replace)
+    assert list(tmp_path.iterdir()) == []

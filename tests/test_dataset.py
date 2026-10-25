@@ -134,3 +134,16 @@ def test_import_new_images_uses_natural_order(tmp_path):
     with open(base / ORIGINAL_DIR / RENAME_MAP_FILE, encoding="utf-8") as f:
         rows = list(csv.reader(f))[2:]
     assert [os.path.basename(r[1]) for r in rows] == ["x9.png", "x11.png"]
+
+
+def test_natural_key_handles_non_decimal_digits():
+    # "²" è una cifra per isdigit() ma non per \d né per int()
+    names = ["a1²3.png", "a10.png", "a2.png"]
+
+    assert sorted(names, key=layout.natural_key) == ["a1²3.png", "a2.png", "a10.png"]
+
+
+def test_natural_order_is_deterministic_for_case_only_differences():
+    names = ["/s/img1.png", "/s/IMG1.png"]
+
+    assert sorted(names, key=layout.natural_key) == sorted(reversed(names), key=layout.natural_key)

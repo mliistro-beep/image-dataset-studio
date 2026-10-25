@@ -43,9 +43,12 @@ def list_images(folder: str) -> List[str]:
                   if os.path.isfile(os.path.join(folder, f)) and is_image(f))
 
 
-def natural_key(path: str) -> List[object]:
-    """Chiave di ordinamento "umana": img2 prima di img10, senza distinguere maiuscole."""
-    return [int(part) if part.isdigit() else part.casefold() for part in re.split(r"(\d+)", path)]
+def natural_key(path: str) -> Tuple[List[object], str]:
+    """Chiave di ordinamento "umana": img2 prima di img10, senza distinguere maiuscole.
+    Il percorso originale fa da spareggio, così IMG1 e img1 hanno sempre lo stesso ordine."""
+    # isdecimal e non isdigit: "²" è una cifra per isdigit ma non per \d né per int()
+    parts = [int(part) if part.isdecimal() else part.casefold() for part in re.split(r"(\d+)", path)]
+    return parts, path
 
 
 def seq_name(index: int, ext: str) -> str:
