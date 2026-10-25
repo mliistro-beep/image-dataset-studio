@@ -83,11 +83,12 @@ class ZoomableImageView(QGraphicsView):
     """Widget personalizzato per mostrare immagini con supporto a Zoom, Pan e Reset."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.scene = QGraphicsScene(self)
-        self.setScene(self.scene)
+        # Non `self.scene`: nasconderebbe il metodo QGraphicsView.scene()
+        self._scene = QGraphicsScene(self)
+        self.setScene(self._scene)
 
         self.pixmap_item = QGraphicsPixmapItem()
-        self.scene.addItem(self.pixmap_item)
+        self._scene.addItem(self.pixmap_item)
 
         # Impostazioni di visualizzazione fluide
         self.setRenderHint(QPainter.SmoothPixmapTransform)
@@ -98,22 +99,22 @@ class ZoomableImageView(QGraphicsView):
         self.setStyleSheet("background-color: #1e1e1e; border: 1px solid #444;")
 
     def setPixmap(self, pixmap: QPixmap):
-        self.scene.clear()
+        self._scene.clear()
         self.pixmap_item = QGraphicsPixmapItem(pixmap)
-        self.scene.addItem(self.pixmap_item)
-        self.scene.setSceneRect(self.pixmap_item.boundingRect())
+        self._scene.addItem(self.pixmap_item)
+        self._scene.setSceneRect(self.pixmap_item.boundingRect())
         self.reset_zoom()
 
     def reset_zoom(self):
         """Ripristina la trasformazione e adatta l'immagine alla dimensione della vista."""
         self.resetTransform()
-        if not self.scene.sceneRect().isEmpty():
-            self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+        if not self._scene.sceneRect().isEmpty():
+            self.fitInView(self._scene.sceneRect(), Qt.KeepAspectRatio)
 
     def setText(self, text: str):
         # Fallback per azzerare o mostrare testi (es. "Nessuna foto")
-        self.scene.clear()
-        text_item = self.scene.addText(text)
+        self._scene.clear()
+        text_item = self._scene.addText(text)
         text_item.setDefaultTextColor(QColor(220, 220, 220))
 
     def wheelEvent(self, event: QWheelEvent):

@@ -137,7 +137,7 @@ def normalize_etag(value: Optional[str]) -> Optional[str]:
 
 
 def _is_supported_digest(digest: Optional[str]) -> bool:
-    return bool(digest) and len(digest) in (40, 64) and all(c in string.hexdigits for c in digest)
+    return digest is not None and len(digest) in (40, 64) and all(c in string.hexdigits for c in digest)
 
 
 def file_matches_digest(path: str, digest: str, should_stop: Callable[[], bool]) -> bool:
@@ -145,7 +145,8 @@ def file_matches_digest(path: str, digest: str, should_stop: Callable[[], bool])
     if len(digest) == 64:
         hasher = hashlib.sha256()
     else:
-        hasher = hashlib.sha1()
+        # sha1 per confrontarlo con l'id del blob git di HF, non come protezione crittografica
+        hasher = hashlib.sha1(usedforsecurity=False)
         hasher.update(b"blob %d\0" % os.path.getsize(path))
 
     with open(path, "rb") as f:
@@ -374,7 +375,7 @@ def select_tags(probs, tags_data: List[dict], config: dict, banned_set: set) -> 
         candidates.sort(key=lambda x: x[0], reverse=True)
 
         already_selected = set(final_tags)
-        for prob, clean_tag in candidates:
+        for _prob, clean_tag in candidates:
             if len(final_tags) >= min_tags:
                 break
             if clean_tag not in already_selected:
