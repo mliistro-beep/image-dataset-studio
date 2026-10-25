@@ -2,8 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Motore WD14: logica estratta 1:1 da BatchTaggingThread / ModelLoaderThread dello script originale."""
 import csv
+import hashlib
+import json
 import os
+import string
 import time
+import urllib.error
 import urllib.request
 from typing import Callable, List, Optional, Tuple
 
@@ -22,6 +26,10 @@ except ImportError:
 RATING_TAGS = {"general", "sensitive", "questionable", "explicit"}
 DOWNLOAD_TIMEOUT_S = 30
 DOWNLOAD_CHUNK_SIZE = 1024 * 512
+VERIFY_TIMEOUT_S = 10
+HASH_CHUNK_SIZE = 1024 * 1024
+VERIFIED_SUFFIX = ".verified"
+HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) WD14-AutoTagger/2.0"}
 
 
 # ---------------------------------------------------------------------------
@@ -40,10 +48,7 @@ def download_file(url: str, dest_path: str, file_desc: str,
                   log_cb: Callable[[str], None],
                   should_stop: Callable[[], bool]):
     tmp_path = dest_path + ".tmp"
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) WD14-AutoTagger/2.0"}
-    )
+    req = urllib.request.Request(url, headers=HTTP_HEADERS)
 
     try:
         _stream_to_file(req, tmp_path, file_desc, progress_cb, log_cb, should_stop)
@@ -99,29 +104,138 @@ def _stream_to_file(req: urllib.request.Request, tmp_path: str, file_desc: str,
         raise OSError(tr("wd14.download_incomplete", file=file_desc, done=bytes_downloaded, total=total_size))
 
 
+# ---------------------------------------------------------------------------
+# Verifica della cache: i file scaricati prima del controllo su Content-Length possono essere troncati
+# ---------------------------------------------------------------------------
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    # HF mette x-linked-etag sulla prima risposta (302/307): seguendo il redirect si perderebbe
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _head_headers(url: str):
+    req = urllib.request.Request(url, method="HEAD", headers=HTTP_HEADERS)
+    opener = urllib.request.build_opener(_NoRedirect)
+    try:
+        with opener.open(req, timeout=VERIFY_TIMEOUT_S) as response:
+            return response.headers
+    except urllib.error.HTTPError as e:
+        e.close()
+        if 300 <= e.code < 400:
+            return e.headers
+        raise
+
+
+def normalize_etag(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    value = value.strip()
+    if value.startswith("W/"):
+        value = value[2:]
+    return value.strip('"').lower()
+
+
+def _is_supported_digest(digest: Optional[str]) -> bool:
+    return bool(digest) and len(digest) in (40, 64) and all(c in string.hexdigits for c in digest)
+
+
+def file_matches_digest(path: str, digest: str, should_stop: Callable[[], bool]) -> bool:
+    """HF usa lo sha256 del contenuto per i file LFS e lo sha1 del blob git per i file normali."""
+    if len(digest) == 64:
+        hasher = hashlib.sha256()
+    else:
+        hasher = hashlib.sha1()
+        hasher.update(b"blob %d\0" % os.path.getsize(path))
+
+    with open(path, "rb") as f:
+        while chunk := f.read(HASH_CHUNK_SIZE):
+            if should_stop():
+                raise InterruptedError(tr("wd14.verify_cancelled"))
+            hasher.update(chunk)
+    return hasher.hexdigest() == digest.lower()
+
+
+def is_marked_verified(path: str) -> bool:
+    """Il marcatore vale solo se il file ha ancora la dimensione verificata."""
+    try:
+        with open(path + VERIFIED_SUFFIX, "r", encoding="utf-8") as f:
+            marker = json.load(f)
+        return marker["size"] == os.path.getsize(path)
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
+def _mark_verified(path: str, digest: str, log_cb: Callable[[str], None]) -> None:
+    try:
+        with open(path + VERIFIED_SUFFIX, "w", encoding="utf-8") as f:
+            json.dump({"size": os.path.getsize(path), "etag": digest}, f)
+    except OSError as e:
+        # Non blocca il tagging: al prossimo avvio la verifica si ripete
+        log_cb(tr("wd14.verify_mark_failed", file=os.path.basename(path), error=e))
+
+
+def _fetch_digest(url: str, file_desc: str, log_cb: Callable[[str], None]) -> Optional[str]:
+    """Hash atteso del file su HF, oppure None (con un avviso) se non si può ottenere."""
+    try:
+        headers = _head_headers(url)
+    except OSError as e:
+        log_cb(tr("wd14.verify_unavailable", file=file_desc, error=e))
+        return None
+    digest = normalize_etag(headers.get("X-Linked-Etag") or headers.get("ETag"))
+    if not _is_supported_digest(digest):
+        log_cb(tr("wd14.verify_unsupported", file=file_desc))
+        return None
+    return digest
+
+
+def _ensure_file(url: str, path: str, file_desc: str, downloading_msg: str, cached_msg: str,
+                 progress_cb, log_cb, should_stop) -> None:
+    if is_marked_verified(path):
+        log_cb(cached_msg)
+        return
+
+    digest = _fetch_digest(url, file_desc, log_cb)
+    if os.path.exists(path) and os.path.getsize(path) > 0:
+        if digest is None:
+            # Senza rete si lavora con la cache; la verifica si ripete al prossimo avvio
+            log_cb(cached_msg)
+            log_cb(tr("wd14.cache_unverified", file=file_desc))
+            return
+        log_cb(tr("wd14.verifying", file=file_desc))
+        if file_matches_digest(path, digest, should_stop):
+            _mark_verified(path, digest, log_cb)
+            log_cb(cached_msg)
+            return
+        log_cb(tr("wd14.cache_corrupt", file=file_desc))
+
+    log_cb(downloading_msg)
+    download_file(url, path, file_desc, progress_cb, log_cb, should_stop)
+    if digest is None:
+        return
+    if not file_matches_digest(path, digest, should_stop):
+        try:
+            os.remove(path)
+        except OSError:
+            pass  # senza marcatore il file verrà comunque riverificato e riscaricato
+        raise OSError(tr("wd14.download_corrupt", file=file_desc))
+    _mark_verified(path, digest, log_cb)
+
+
 def ensure_model_files(repo_id: str, progress_cb, log_cb, should_stop) -> Optional[Tuple[str, str]]:
-    """Scarica model.onnx e selected_tags.csv se mancanti. Ritorna None se interrotto."""
+    """Scarica model.onnx e selected_tags.csv se mancanti o danneggiati. Ritorna None se interrotto."""
     os.makedirs(CACHE_BASE_DIR, exist_ok=True)
     base_url = f"https://huggingface.co/{repo_id}/resolve/main/"
     onnx_path, csv_path = model_paths(repo_id)
 
-    if not os.path.exists(onnx_path) or os.path.getsize(onnx_path) == 0:
-        log_cb(tr("wd14.downloading_onnx"))
-        download_file(base_url + "model.onnx", onnx_path, "model.onnx", progress_cb, log_cb, should_stop)
-    else:
-        log_cb(tr("wd14.onnx_cached"))
-
-    if should_stop():
-        return None
-
-    if not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0:
-        log_cb(tr("wd14.downloading_csv"))
-        download_file(base_url + "selected_tags.csv", csv_path, "selected_tags.csv", progress_cb, log_cb, should_stop)
-    else:
-        log_cb(tr("wd14.csv_cached"))
-
-    if should_stop():
-        return None
+    files = (
+        ("model.onnx", onnx_path, tr("wd14.downloading_onnx"), tr("wd14.onnx_cached")),
+        ("selected_tags.csv", csv_path, tr("wd14.downloading_csv"), tr("wd14.csv_cached")),
+    )
+    for name, path, downloading_msg, cached_msg in files:
+        _ensure_file(base_url + name, path, name, downloading_msg, cached_msg, progress_cb, log_cb, should_stop)
+        if should_stop():
+            return None
     return onnx_path, csv_path
 
 
