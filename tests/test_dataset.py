@@ -107,3 +107,30 @@ def test_write_zip_roundtrip_and_archive_stem(tmp_path):
         assert zf.namelist() == ["a.txt"]
     assert archive.archive_stem("/x/my.set.tar.gz") == "my.set"
     assert archive.archive_stem("/x/data.ZIP") == "data"
+
+
+def test_first_import_uses_natural_order(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    paths = [make_image(src / n) for n in ("img10.png", "img2.png", "IMG1.png")]
+
+    layout.first_import(paths, str(tmp_path / "ds"))
+
+    with open(tmp_path / "ds" / ORIGINAL_DIR / RENAME_MAP_FILE, encoding="utf-8") as f:
+        rows = list(csv.reader(f))[1:]
+    assert [os.path.basename(r[1]) for r in rows] == ["IMG1.png", "img2.png", "img10.png"]
+
+
+def test_import_new_images_uses_natural_order(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    base = tmp_path / "ds"
+    layout.first_import([make_image(src / "first.png")], str(base))
+    paths = [make_image(src / n) for n in ("x11.png", "x9.png")]
+
+    created = layout.import_new_images(paths, str(base))
+
+    assert created == ["001.png", "002.png"]
+    with open(base / ORIGINAL_DIR / RENAME_MAP_FILE, encoding="utf-8") as f:
+        rows = list(csv.reader(f))[2:]
+    assert [os.path.basename(r[1]) for r in rows] == ["x9.png", "x11.png"]
