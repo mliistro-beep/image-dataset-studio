@@ -3,6 +3,7 @@
 import json
 import os
 import platform
+import tempfile
 
 APP_NAME = "Image Dataset Studio"
 APP_VERSION = "0.1.0"
@@ -126,11 +127,19 @@ def load_settings() -> dict:
 
 def save_settings(updates: dict):
     """Aggiorna solo le chiavi passate, preservando quelle delle altre schede."""
+    tmp_path = None
     try:
         os.makedirs(CACHE_BASE_DIR, exist_ok=True)
         settings = load_settings()
         settings.update(updates)
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+        # Scrittura atomica: un errore o una chiusura a metà non lasciano settings.json troncato
+        fd, tmp_path = tempfile.mkstemp(prefix=".settings-", suffix=".tmp", dir=os.path.dirname(SETTINGS_FILE))
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=2)
+        os.replace(tmp_path, SETTINGS_FILE)
+        tmp_path = None
     except Exception as e:
         print(f"⚠️ settings save error: {e}")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
