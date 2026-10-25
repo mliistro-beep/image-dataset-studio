@@ -408,6 +408,7 @@ _ENTRIES = [
 
     # --- Motori, gestore modelli, thread -------------------------------------------
     ("wd14.download_cancelled", "Download annullato dall'utente.", "Download cancelled by the user."),
+    ("wd14.download_incomplete", "Download di {file} incompleto: ricevuti {done} byte su {total}. Riprova.", "Incomplete download of {file}: received {done} of {total} bytes. Please try again."),
     ("wd14.download_status", "Download {file}: {done}/{total} MB ({percent}%) - {speed} MB/s", "Download {file}: {done}/{total} MB ({percent}%) - {speed} MB/s"),
     ("wd14.downloading_onnx", "📥 Download in corso del modello ONNX da HuggingFace...", "📥 Downloading the ONNX model from HuggingFace..."),
     ("wd14.onnx_cached", "✅ File model.onnx trovato nella cache locale.", "✅ model.onnx found in the local cache."),
