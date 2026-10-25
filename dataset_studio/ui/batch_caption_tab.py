@@ -264,10 +264,11 @@ class BatchCaptionTab(BatchTabBase):
 
         group_opts = QGroupBox(tr("cap.opts_box"))
         opts = QVBoxLayout(group_opts)
+        saved = load_settings()
         opts.addWidget(QLabel(tr("cap.prefix")))
         self.entry_prefix = QLineEdit()
         self.entry_prefix.setPlaceholderText(tr("tag.trigger_ph"))
-        self.entry_prefix.setText(load_settings().get("caption_prefix", ""))
+        self.entry_prefix.setText(saved.get("caption_prefix", ""))
         self.entry_prefix.textChanged.connect(lambda t: save_settings({"caption_prefix": t}))
         opts.addWidget(self.entry_prefix)
         opts.addWidget(QLabel(tr("common.write_mode")))
@@ -276,7 +277,13 @@ class BatchCaptionTab(BatchTabBase):
         self.rb_append = QRadioButton(tr("cap.append"))
         opts.addWidget(self.rb_overwrite)
         opts.addWidget(self.rb_append)
+        # Solo dopo addWidget: prima i due pulsanti non hanno un genitore comune e non si escludono a vicenda
+        self.rb_append.setChecked(saved.get("caption_write_mode") == "append")
+        self.rb_append.toggled.connect(
+            lambda on: save_settings({"caption_write_mode": "append" if on else "overwrite"}))
         self.chk_compress_output = QCheckBox(tr("common.compress"))
+        self.chk_compress_output.setChecked(bool(saved.get("caption_compress_output", False)))
+        self.chk_compress_output.toggled.connect(lambda on: save_settings({"caption_compress_output": on}))
         opts.addWidget(self.chk_compress_output)
         sidebar_layout.addWidget(group_opts)
 

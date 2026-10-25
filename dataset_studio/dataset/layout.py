@@ -43,6 +43,14 @@ def list_images(folder: str) -> List[str]:
                   if os.path.isfile(os.path.join(folder, f)) and is_image(f))
 
 
+def natural_key(path: str) -> Tuple[List[object], str]:
+    """Chiave di ordinamento "umana": img2 prima di img10, senza distinguere maiuscole.
+    Il percorso originale fa da spareggio, così IMG1 e img1 hanno sempre lo stesso ordine."""
+    # isdecimal e non isdigit: "²" è una cifra per isdigit ma non per \d né per int()
+    parts = [int(part) if part.isdecimal() else part.casefold() for part in re.split(r"(\d+)", path)]
+    return parts, path
+
+
 def seq_name(index: int, ext: str) -> str:
     return f"{index:03d}{ext.lower()}"
 
@@ -158,7 +166,7 @@ def first_import(src_paths: List[str], base_dir: str) -> List[str]:
     original_dir = os.path.join(base_dir, ORIGINAL_DIR)
     if list_images(original_dir):
         raise DatasetLayoutError([tr("layout.already_has_images", path=original_dir)])
-    return _copy_numbered(sorted(src_paths), original_dir, 0)
+    return _copy_numbered(sorted(src_paths, key=natural_key), original_dir, 0)
 
 
 def import_new_images(src_paths: List[str], base_dir: str) -> List[str]:
@@ -170,7 +178,7 @@ def import_new_images(src_paths: List[str], base_dir: str) -> List[str]:
     bad = [p for p in src_paths if not is_image(p)]
     if bad:
         raise DatasetLayoutError([tr("layout.import_bad_format", f=os.path.basename(p)) for p in bad])
-    return _copy_numbered(src_paths, original_dir, next_index(original_dir))
+    return _copy_numbered(sorted(src_paths, key=natural_key), original_dir, next_index(original_dir))
 
 
 def pending_images(original_dir: str, target_dir: str, reprocess_all: bool) -> List[str]:
