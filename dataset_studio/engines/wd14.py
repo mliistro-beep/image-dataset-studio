@@ -20,6 +20,8 @@ except ImportError:
     ort = None
 
 RATING_TAGS = {"general", "sensitive", "questionable", "explicit"}
+DOWNLOAD_TIMEOUT_S = 30
+DOWNLOAD_CHUNK_SIZE = 1024 * 512
 
 
 # ---------------------------------------------------------------------------
@@ -43,10 +45,27 @@ def download_file(url: str, dest_path: str, file_desc: str,
         headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) WD14-AutoTagger/2.0"}
     )
 
-    with urllib.request.urlopen(req) as response, open(tmp_path, "wb") as out_file:
+    try:
+        _stream_to_file(req, tmp_path, file_desc, progress_cb, log_cb, should_stop)
+    except BaseException:
+        # Errore di rete o Stop: niente .tmp a metà nella cache
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+
+    if os.path.exists(dest_path):
+        os.remove(dest_path)
+    os.rename(tmp_path, dest_path)
+
+
+def _stream_to_file(req: urllib.request.Request, tmp_path: str, file_desc: str,
+                    progress_cb: Callable[[str, float], None],
+                    log_cb: Callable[[str], None],
+                    should_stop: Callable[[], bool]) -> None:
+    # Il timeout vale per la connessione e per ogni lettura: una rete bloccata non blocca il worker per sempre
+    with urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT_S) as response, open(tmp_path, "wb") as out_file:
         total_size = int(response.headers.get("Content-Length", 0))
         bytes_downloaded = 0
-        chunk_size = 1024 * 512
         start_time = time.time()
         last_log_time = 0.0
 
@@ -54,7 +73,7 @@ def download_file(url: str, dest_path: str, file_desc: str,
             if should_stop():
                 raise InterruptedError(tr("wd14.download_cancelled"))
 
-            chunk = response.read(chunk_size)
+            chunk = response.read(DOWNLOAD_CHUNK_SIZE)
             if not chunk:
                 break
             out_file.write(chunk)
@@ -75,9 +94,9 @@ def download_file(url: str, dest_path: str, file_desc: str,
                     last_log_time = time.time()
                     log_cb(f"  📥 {status_msg}")
 
-    if os.path.exists(dest_path):
-        os.remove(dest_path)
-    os.rename(tmp_path, dest_path)
+    # Connessione chiusa prima della fine: il file sarebbe un modello troncato
+    if total_size > 0 and bytes_downloaded != total_size:
+        raise OSError(tr("wd14.download_incomplete", file=file_desc, done=bytes_downloaded, total=total_size))
 
 
 def ensure_model_files(repo_id: str, progress_cb, log_cb, should_stop) -> Optional[Tuple[str, str]]:
