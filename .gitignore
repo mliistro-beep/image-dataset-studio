@@ -27,8 +27,9 @@ dataset_captions/
 
 # File di progetto non pubblicati / unpublished project files
 Mass_beta2-lora_dataset_auto_tagger_pyside6.py
-CLAUDE.md
-.claude/
+
+# Impostazioni locali di Claude Code / local Claude Code settings
+.claude/settings.local.json
 
 # Editor / OS
 .vscode/
