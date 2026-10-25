@@ -3,6 +3,7 @@
 import json
 import os
 import platform
+import shutil
 import tempfile
 
 APP_NAME = "Image Dataset Studio"
@@ -132,14 +133,23 @@ def save_settings(updates: dict):
         os.makedirs(CACHE_BASE_DIR, exist_ok=True)
         settings = load_settings()
         settings.update(updates)
-        # Scrittura atomica: un errore o una chiusura a metà non lasciano settings.json troncato
-        fd, tmp_path = tempfile.mkstemp(prefix=".settings-", suffix=".tmp", dir=os.path.dirname(SETTINGS_FILE))
+        # Scrittura atomica: un errore o una chiusura a metà non lasciano settings.json troncato.
+        # realpath: se settings.json è un link simbolico si aggiorna il file a cui punta, senza rompere il link
+        target = os.path.realpath(SETTINGS_FILE)
+        fd, tmp_path = tempfile.mkstemp(prefix=".settings-", suffix=".tmp", dir=os.path.dirname(target))
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=2)
-        os.replace(tmp_path, SETTINGS_FILE)
+            f.flush()
+            os.fsync(f.fileno())
+        if os.path.exists(target):
+            shutil.copymode(target, tmp_path)   # mkstemp crea il file 0600
+        os.replace(tmp_path, target)
         tmp_path = None
     except Exception as e:
         print(f"⚠️ settings save error: {e}")
     finally:
-        if tmp_path and os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        if tmp_path:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass   # già segnalato sopra; un .tmp rimasto non è grave

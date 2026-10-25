@@ -47,15 +47,12 @@ def download_file(url: str, dest_path: str, file_desc: str,
 
     try:
         _stream_to_file(req, tmp_path, file_desc, progress_cb, log_cb, should_stop)
+        os.replace(tmp_path, dest_path)
     except BaseException:
-        # Errore di rete o Stop: niente .tmp a metà nella cache
+        # Errore di rete, Stop o rename fallito: niente .tmp a metà nella cache
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
         raise
-
-    if os.path.exists(dest_path):
-        os.remove(dest_path)
-    os.rename(tmp_path, dest_path)
 
 
 def _stream_to_file(req: urllib.request.Request, tmp_path: str, file_desc: str,
