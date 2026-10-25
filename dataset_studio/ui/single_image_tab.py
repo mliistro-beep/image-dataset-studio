@@ -198,6 +198,10 @@ class SingleImageTab(QWidget):
             return
         clipboard = QGuiApplication.clipboard()
         mime = clipboard.mimeData()
+        # Con gli appunti vuoti (o senza proprietario, es. Wayland) Qt può restituire None
+        if mime is None:
+            self.lbl_status.setText(tr("single.no_clipboard_image"))
+            return
         if mime.hasImage():
             qimg = clipboard.image()
             if not qimg.isNull():
