@@ -341,8 +341,8 @@ STRINGS = {
     "single.mode_caption_short": "Natural",
     "single.mode_both_short": "Tags + Natural",
     "single.apply_rules": "Aplicar trigger word / prepend / postpend da aba Batch Tag",
-    "single.models_in_use":
-        "Modelos em uso — WD14: {wd14} · VLM: {vlm}\n(limiares, modelos e instrução são definidos nas abas Batch Tag e Batch Caption; os dois modelos são carregados um de cada vez)",
+    "single.models_in_use": "Modelos em uso — WD14: {wd14} · VLM: {vlm}",
+    "single.models_hint": "Limiares, modelos e instrução são definidos nas abas Batch Tag e Batch Caption; os dois modelos são carregados um de cada vez",
     "single.analyze": "🔎 ANALISAR IMAGEM",
     "single.result_box": "📝 Prompt montado (editável)",
     "single.result_ph": "O prompt extraído aparecerá aqui. Ordem: tags, depois descrição natural.",

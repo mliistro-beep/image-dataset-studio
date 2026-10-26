@@ -341,8 +341,8 @@ STRINGS = {
     "single.mode_caption_short": "自然言語",
     "single.mode_both_short": "タグ + 自然言語",
     "single.apply_rules": "「一括タグ付け」タブのトリガーワード / Prepend / Postpend を適用",
-    "single.models_in_use":
-        "使用中のモデル — WD14：{wd14} · VLM：{vlm}\n（しきい値、モデル、指示は「一括タグ付け」と「一括キャプション」タブで設定します。2 つのモデルは 1 つずつ読み込まれます）",
+    "single.models_in_use": "使用中のモデル — WD14：{wd14} · VLM：{vlm}",
+    "single.models_hint": "しきい値、モデル、指示は「一括タグ付け」と「一括キャプション」タブで設定します。2 つのモデルは 1 つずつ読み込まれます",
     "single.analyze": "🔎 画像を解析",
     "single.result_box": "📝 組み立てたプロンプト（編集可）",
     "single.result_ph": "抽出したプロンプトがここに表示されます。順序：タグ、次に自然言語の説明。",

@@ -8,7 +8,8 @@ from PySide6.QtCore import Qt, QProcess
 from PySide6.QtGui import QFont, QPalette, QColor
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QTextEdit, QGroupBox, QSplitter,
-    QLabel, QPushButton, QMessageBox, QComboBox, QApplication
+    QLabel, QPushButton, QMessageBox, QComboBox, QApplication, QProxyStyle, QStyle, QStyleFactory,
+    QStyleOptionGroupBox
 )
 
 from ..config import APP_NAME, load_settings, save_settings
@@ -19,6 +20,10 @@ from .batch_caption_tab import BatchCaptionTab
 from .batch_tag_tab import BatchTagTab
 from .license_dialog import AboutDialog
 from .single_image_tab import SingleImageTab
+
+# Un titolo di riquadro non impone più della sua parte iniziale come larghezza minima
+_GROUPBOX_TITLE_MIN_WIDTH = 120
+_GROUPBOX_TITLE_PADDING = 4
 
 
 class MainWindow(QMainWindow):
@@ -43,6 +48,8 @@ class MainWindow(QMainWindow):
         self.combo_lang.addItem(tr("main.lang_auto"), "auto")
         for code, name in LANGUAGE_NAMES.items():
             self.combo_lang.addItem(name, code)
+        # Qt misura le emoji (🌐, bandiere) più strette di come le disegna: senza margine il testo resta tagliato
+        self.combo_lang.setMinimumWidth(self.combo_lang.sizeHint().width() + self.combo_lang.fontMetrics().height())
         self.combo_lang.setCurrentIndex(max(self.combo_lang.findData(load_settings().get("language", "auto")), 0))
         self.combo_lang.currentIndexChanged.connect(self._on_language_changed)
         header.addWidget(self.combo_lang)
@@ -161,8 +168,45 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
+class EmojiSafeStyle(QProxyStyle):
+    """Fusion con i titoli dei QGroupBox adatti alle emoji e alle traduzioni lunghe.
+
+    Fusion misura il titolo con boundingRect(), che con le emoji dà ~10 px meno di quanto viene disegnato:
+    l'ultima lettera restava tagliata. Inoltre un titolo lungo imponeva la propria larghezza come minimo del
+    riquadro e allargava la finestra (francese, spagnolo): ora decide il contenuto e il titolo si accorcia con "…".
+    """
+
+    def __init__(self):
+        super().__init__(QStyleFactory.create("Fusion"))
+
+    def sizeFromContents(self, type_, option, size, widget=None):
+        result = super().sizeFromContents(type_, option, size, widget)
+        if type_ == QStyle.CT_GroupBox:
+            result.setWidth(min(result.width(), _GROUPBOX_TITLE_MIN_WIDTH))
+        return result
+
+    def subControlRect(self, control, option, sub_control, widget=None):
+        rect = super().subControlRect(control, option, sub_control, widget)
+        if control == QStyle.CC_GroupBox and sub_control == QStyle.SC_GroupBoxLabel and option.text:
+            frame = super().subControlRect(control, option, QStyle.SC_GroupBoxFrame, widget)
+            needed = option.fontMetrics.horizontalAdvance(option.text) + _GROUPBOX_TITLE_PADDING
+            rect.setWidth(min(max(rect.width(), needed), frame.right() - rect.left()))
+        return rect
+
+    def drawComplexControl(self, control, option, painter, widget=None):
+        if control == QStyle.CC_GroupBox and option.text:
+            frame = self.subControlRect(control, option, QStyle.SC_GroupBoxFrame, widget)
+            label = self.subControlRect(control, option, QStyle.SC_GroupBoxLabel, widget)
+            available = frame.right() - label.left() - _GROUPBOX_TITLE_PADDING
+            elided = option.fontMetrics.elidedText(option.text, Qt.ElideRight, available)
+            if elided != option.text:
+                option = QStyleOptionGroupBox(option)
+                option.text = elided
+        super().drawComplexControl(control, option, painter, widget)
+
+
 def apply_dark_palette(app):
-    app.setStyle("Fusion")
+    app.setStyle(EmojiSafeStyle())
     dark_palette = QPalette()
     dark_palette.setColor(QPalette.Window, QColor(45, 45, 45))
     dark_palette.setColor(QPalette.WindowText, QColor(220, 220, 220))
