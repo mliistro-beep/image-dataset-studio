@@ -341,8 +341,8 @@ STRINGS = {
     "single.mode_caption_short": "自然语言",
     "single.mode_both_short": "标签 + 自然语言",
     "single.apply_rules": "应用“批量标签”页中的触发词 / 前置 / 后置标签",
-    "single.models_in_use":
-        "使用中的模型 — WD14：{wd14} · VLM：{vlm}\n（阈值、模型和指令在“批量标签”和“批量描述”页中设置；两个模型会依次加载）",
+    "single.models_in_use": "使用中的模型 — WD14：{wd14} · VLM：{vlm}",
+    "single.models_hint": "阈值、模型和指令在“批量标签”和“批量描述”页中设置；两个模型会依次加载",
     "single.analyze": "🔎 分析图像",
     "single.result_box": "📝 组合后的提示词（可编辑）",
     "single.result_ph": "提取的提示词将显示在这里。顺序：先标签，再自然语言描述。",
