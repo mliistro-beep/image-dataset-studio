@@ -12,6 +12,8 @@ LICENSE_ID = "AGPL-3.0-only"
 COPYRIGHT_YEAR = "2026"
 COPYRIGHT_HOLDER = "Mauro Liistro"
 REPO_URL = "https://github.com/mliistro-beep/image-dataset-studio"
+ISSUES_URL = REPO_URL + "/issues"
+AUTHOR_URL = "https://github.com/mliistro-beep"
 
 # Le chiavi restano quelle dello script originale (sono salvate nei settings come "last_model");
 # "name" + "hint" (chiave i18n) formano il testo mostrato nell'interfaccia.
@@ -61,6 +63,60 @@ VLM_MODELS = {
         "repo": "fancyfeast/llama-joycaption-beta-one-hf-llava",
     },
 }
+
+# Crediti mostrati in Informazioni. I modelli non sono distribuiti con il programma: si scaricano da HuggingFace
+# con la loro licenza. "license_note" è una chiave i18n per i casi in cui la licenza va spiegata.
+MODEL_CREDITS = [
+    {
+        "name": "WD14 Tagger v2 (ConvNeXtV2, SwinV2, MOAT)",
+        "author": "SmilingWolf",
+        "url": "https://huggingface.co/SmilingWolf",
+        "license": "Apache-2.0",
+        "repos": [m["repo"] for m in AVAILABLE_MODELS.values()],
+    },
+    {
+        "name": "Florence-2 (base, large)",
+        "author": "Microsoft · florence-community",
+        "url": "https://huggingface.co/microsoft/Florence-2-large",
+        "license": "MIT",
+        "repos": ["florence-community/Florence-2-large", "florence-community/Florence-2-base"],
+    },
+    {
+        "name": "moondream2",
+        "author": "vikhyatk (Moondream)",
+        "url": "https://huggingface.co/vikhyatk/moondream2",
+        "license": "Apache-2.0",
+        "repos": ["vikhyatk/moondream2"],
+    },
+    {
+        "name": "JoyCaption Beta One",
+        "author": "fancyfeast",
+        "url": "https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava",
+        "license": "Llama 3.1 Community License",
+        "license_note": "credits.joycaption_license",
+        "repos": ["fancyfeast/llama-joycaption-beta-one-hf-llava"],
+    },
+]
+
+# Librerie usate a runtime; "packages" sono i nomi nei requirements (un test controlla che ci siano tutti)
+LIBRARY_CREDITS = [
+    {"name": "Qt for Python (PySide6)", "url": "https://doc.qt.io/qtforpython-6/", "license": "LGPL-3.0",
+     "packages": ["PySide6-Essentials"]},
+    {"name": "ONNX Runtime", "url": "https://onnxruntime.ai", "license": "MIT",
+     "packages": ["onnxruntime", "onnxruntime-gpu"]},
+    {"name": "PyTorch", "url": "https://pytorch.org", "license": "BSD-3-Clause", "packages": ["torch"]},
+    {"name": "Transformers", "url": "https://github.com/huggingface/transformers", "license": "Apache-2.0",
+     "packages": ["transformers"]},
+    {"name": "Accelerate", "url": "https://github.com/huggingface/accelerate", "license": "Apache-2.0",
+     "packages": ["accelerate"]},
+    {"name": "huggingface_hub", "url": "https://github.com/huggingface/huggingface_hub", "license": "Apache-2.0",
+     "packages": ["huggingface_hub"]},
+    {"name": "bitsandbytes", "url": "https://github.com/bitsandbytes-foundation/bitsandbytes", "license": "MIT",
+     "packages": ["bitsandbytes"]},
+    {"name": "NumPy", "url": "https://numpy.org", "license": "BSD-3-Clause", "packages": ["numpy"]},
+    {"name": "Pillow", "url": "https://python-pillow.org", "license": "MIT-CMU", "packages": ["Pillow"]},
+    {"name": "tqdm", "url": "https://github.com/tqdm/tqdm", "license": "MPL-2.0 AND MIT", "packages": ["tqdm"]},
+]
 
 # Profili hardware: il primo modello della lista è quello consigliato. "label" è una chiave i18n.
 VLM_PROFILES = {

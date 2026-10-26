@@ -1,6 +1,6 @@
 # Image Dataset Studio
 
-Desktop app (PySide6) to prepare LoRA training datasets: **WD14 tagging**, **natural-language captioning with VLMs** and **prompt extraction from a single image**. Interface in English and Italian.
+Desktop app (PySide6) to prepare LoRA training datasets: **WD14 tagging**, **natural-language captioning with VLMs** and **prompt extraction from a single image**. Interface in English, Italian, Spanish, German, French, Brazilian Portuguese, Simplified Chinese and Japanese.
 
 *[Versione italiana più sotto](#italiano)*
 
@@ -65,7 +65,9 @@ Model weights are downloaded automatically from HuggingFace the first time they 
 python run.py
 ```
 
-On first start you must accept the license. The interface language follows the operating system (Italian if the system is in Italian, English otherwise) and can be changed from the 🌐 menu; the choice is remembered.
+On first start you must accept the license. The interface language follows the operating system (English if the system language is not supported) and can be changed from the 🌐 menu; the choice is remembered. Languages other than Italian and English were translated with the help of AI: corrections are welcome as issues or pull requests. On Linux, Chinese and Japanese need a CJK font (e.g. `fonts-noto-cjk`).
+
+The ℹ️ **About** window shows the author, the links to the repository and to bug reports, the credits (models and libraries with their licenses) and the full license text.
 
 ### Dataset folder structure
 
@@ -82,7 +84,7 @@ Source files are never modified. Images are numbered in natural order (`img2` co
 
 ## Development
 
-The tests cover the pure logic (tags, dataset layout, archives, settings, downloads) and need neither torch nor onnxruntime:
+The tests cover the pure logic (tags, dataset layout, archives, settings, downloads, translations, credits) and need neither torch nor onnxruntime:
 
 ```bash
 python3 -m venv .venv
@@ -92,6 +94,8 @@ python3 -m venv .venv
 
 `tools/exit_repro.py` is a manual check for the crash on exit fixed in `run.py`. It needs the full installation and the WD14 model in the cache: `~/image-dataset-studio/venv/bin/python -I tools/exit_repro.py tags --runs 8` (the crash is intermittent, so it runs several times; exit code 1 if any run crashes).
 
+Interface texts: Italian and English are in `dataset_studio/i18n_strings.py`, the other languages in `dataset_studio/translations/<language>.py`. `tests/test_i18n.py` checks that every language has every key with the same `{placeholders}`.
+
 ## License
 
 Copyright © 2026 Mauro Liistro
@@ -100,14 +104,14 @@ This program is free software: you can redistribute it and/or modify it under th
 
 If you distribute this program or a modified version, **or let others use it over a network**, you must make the complete source code available under the same license.
 
-The AI models are **not** part of this repository and are subject to their own licenses: WD14 Tagger (Apache-2.0), Florence-2 (MIT), moondream2 (Apache-2.0), JoyCaption (Llama 3.1 Community License).
+The AI models are **not** part of this repository and are subject to their own licenses: WD14 Tagger by SmilingWolf (Apache-2.0), Florence-2 by Microsoft (MIT), moondream2 by vikhyatk (Apache-2.0), JoyCaption by fancyfeast (no license of its own; derived from Llama 3.1, under the Llama 3.1 Community License, and SigLIP 2, under Apache-2.0).
 
 ---
 
 <a name="italiano"></a>
 # Italiano
 
-Applicazione desktop (PySide6) per preparare dataset di training LoRA: **tagging WD14**, **caption in linguaggio naturale con VLM** ed **estrazione del prompt da una singola immagine**. Interfaccia in italiano e inglese.
+Applicazione desktop (PySide6) per preparare dataset di training LoRA: **tagging WD14**, **caption in linguaggio naturale con VLM** ed **estrazione del prompt da una singola immagine**. Interfaccia in italiano, inglese, spagnolo, tedesco, francese, portoghese brasiliano, cinese semplificato e giapponese.
 
 ## Funzionalità
 
@@ -170,7 +174,9 @@ I pesi dei modelli vengono scaricati automaticamente da HuggingFace al primo uti
 python run.py
 ```
 
-Al primo avvio va accettata la licenza. La lingua dell'interfaccia segue quella del sistema operativo (italiano se il sistema è in italiano, altrimenti inglese) e si può cambiare dal menu 🌐; la scelta viene ricordata.
+Al primo avvio va accettata la licenza. La lingua dell'interfaccia segue quella del sistema operativo (inglese se la lingua del sistema non è supportata) e si può cambiare dal menu 🌐; la scelta viene ricordata. Le lingue diverse da italiano e inglese sono state tradotte con l'aiuto dell'IA: correzioni benvenute come issue o pull request. Su Linux cinese e giapponese richiedono un font CJK (es. `fonts-noto-cjk`).
+
+La finestra ℹ️ **Informazioni** mostra l'autore, i link al repository e alle segnalazioni, i crediti (modelli e librerie con le loro licenze) e il testo completo della licenza.
 
 ### Struttura delle cartelle
 
@@ -187,7 +193,7 @@ I file sorgente non vengono mai modificati. Le immagini vengono numerate in ordi
 
 ## Sviluppo
 
-I test coprono la logica pura (tag, struttura del dataset, archivi, impostazioni, download) e non richiedono né torch né onnxruntime:
+I test coprono la logica pura (tag, struttura del dataset, archivi, impostazioni, download, traduzioni, crediti) e non richiedono né torch né onnxruntime:
 
 ```bash
 python3 -m venv .venv
@@ -197,6 +203,8 @@ python3 -m venv .venv
 
 `tools/exit_repro.py` è una prova manuale del crash alla chiusura corretto in `run.py`. Serve l'installazione completa con il modello WD14 in cache: `~/image-dataset-studio/venv/bin/python -I tools/exit_repro.py tags --runs 8` (il crash è intermittente, quindi la prova si ripete più volte; codice di uscita 1 se almeno un avvio va in crash).
 
+Testi dell'interfaccia: italiano e inglese sono in `dataset_studio/i18n_strings.py`, le altre lingue in `dataset_studio/translations/<lingua>.py`. `tests/test_i18n.py` controlla che ogni lingua abbia tutte le chiavi con gli stessi `{segnaposto}`.
+
 ## Licenza
 
 Copyright © 2026 Mauro Liistro
@@ -205,4 +213,4 @@ Questo programma è software libero: puoi ridistribuirlo e/o modificarlo secondo
 
 Se distribuisci il programma o una versione modificata, **oppure lo rendi utilizzabile ad altri tramite rete**, devi renderne disponibile il codice sorgente completo sotto la stessa licenza.
 
-I modelli di intelligenza artificiale **non** fanno parte di questo repository e sono soggetti alle rispettive licenze: WD14 Tagger (Apache-2.0), Florence-2 (MIT), moondream2 (Apache-2.0), JoyCaption (Llama 3.1 Community License).
+I modelli di intelligenza artificiale **non** fanno parte di questo repository e sono soggetti alle rispettive licenze: WD14 Tagger di SmilingWolf (Apache-2.0), Florence-2 di Microsoft (MIT), moondream2 di vikhyatk (Apache-2.0), JoyCaption di fancyfeast (senza una licenza propria; deriva da Llama 3.1, con la Llama 3.1 Community License, e da SigLIP 2, con Apache-2.0).

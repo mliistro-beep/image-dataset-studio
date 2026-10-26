@@ -12,13 +12,14 @@ except ImportError:
     sys.exit(1)
 
 from dataset_studio.config import load_settings
-from dataset_studio.i18n import resolve_language, set_language
+from dataset_studio.i18n import install_qt_translator, resolve_language, set_language
 
 
 def main() -> int:
     app = QApplication(sys.argv)
     # La lingua va impostata prima di creare qualsiasi widget
     set_language(resolve_language(load_settings().get("language", "auto")))
+    install_qt_translator(app)
 
     from dataset_studio.ui.license_dialog import LicenseAcceptDialog, license_accepted
     from dataset_studio.ui.main_window import MainWindow, apply_dark_palette
