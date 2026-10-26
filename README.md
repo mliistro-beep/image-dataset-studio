@@ -57,7 +57,7 @@ NVIDIA GPU (enables the JoyCaption profile):
 pip install -r requirements-gpu.txt
 ```
 
-Model weights are downloaded automatically from HuggingFace the first time they are used (WD14 into `~/.cache/wd14_tagger`, VLMs into the standard HuggingFace cache).
+Model weights are downloaded automatically from HuggingFace the first time they are used (WD14 into `~/.cache/wd14_tagger`, VLMs into the standard HuggingFace cache). Cached WD14 files are checked once against the HuggingFace hash: an incomplete or corrupted file is downloaded again. Without a network connection the cached file is used and the check is retried on the next run.
 
 ## Usage
 
@@ -78,7 +78,19 @@ my_dataset/
 └── dataset_captions/    # same images + .txt with natural-language captions
 ```
 
-Source files are never modified. Use **Import new images** to add pictures to an existing dataset: they are numbered after the last one and only the new ones are processed. If `original_dataset` contains files with non-conforming names (e.g. `photo.jpg`, `0009.jpg`, `005.jpg` + `005.png`) processing is blocked with an explicit error.
+Source files are never modified. Images are numbered in natural order (`img2` comes before `img10`). Use **Import new images** to add pictures to an existing dataset: they are numbered after the last one and only the new ones are processed. If `original_dataset` contains files with non-conforming names (e.g. `photo.jpg`, `0009.jpg`, `005.jpg` + `005.png`) processing is blocked with an explicit error.
+
+## Development
+
+The tests cover the pure logic (tags, dataset layout, archives, settings, downloads) and need neither torch nor onnxruntime:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install PySide6-Essentials numpy Pillow tqdm pytest
+.venv/bin/python -m pytest -q tests
+```
+
+`tools/exit_repro.py` is a manual check for the crash on exit fixed in `run.py`. It needs the full installation and the WD14 model in the cache: `~/image-dataset-studio/venv/bin/python -I tools/exit_repro.py tags --runs 8` (the crash is intermittent, so it runs several times; exit code 1 if any run crashes).
 
 ## License
 
@@ -150,7 +162,7 @@ GPU NVIDIA (abilita il profilo JoyCaption):
 pip install -r requirements-gpu.txt
 ```
 
-I pesi dei modelli vengono scaricati automaticamente da HuggingFace al primo utilizzo (WD14 in `~/.cache/wd14_tagger`, i VLM nella cache standard di HuggingFace).
+I pesi dei modelli vengono scaricati automaticamente da HuggingFace al primo utilizzo (WD14 in `~/.cache/wd14_tagger`, i VLM nella cache standard di HuggingFace). I file WD14 in cache vengono controllati una volta con l'hash di HuggingFace: un file incompleto o danneggiato viene scaricato di nuovo. Senza connessione si usa il file in cache e il controllo si ripete all'avvio successivo.
 
 ## Uso
 
@@ -171,7 +183,19 @@ mio_dataset/
 └── dataset_captions/    # stesse immagini + .txt con le caption in linguaggio naturale
 ```
 
-I file sorgente non vengono mai modificati. Con **Importa nuove immagini** si aggiungono foto a un dataset esistente: vengono numerate dopo l'ultima e si elaborano solo quelle nuove. Se `original_dataset` contiene file con nomi non conformi (es. `foto.jpg`, `0009.jpg`, `005.jpg` + `005.png`) l'elaborazione si blocca con un errore esplicito.
+I file sorgente non vengono mai modificati. Le immagini vengono numerate in ordine naturale (`img2` viene prima di `img10`). Con **Importa nuove immagini** si aggiungono foto a un dataset esistente: vengono numerate dopo l'ultima e si elaborano solo quelle nuove. Se `original_dataset` contiene file con nomi non conformi (es. `foto.jpg`, `0009.jpg`, `005.jpg` + `005.png`) l'elaborazione si blocca con un errore esplicito.
+
+## Sviluppo
+
+I test coprono la logica pura (tag, struttura del dataset, archivi, impostazioni, download) e non richiedono né torch né onnxruntime:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install PySide6-Essentials numpy Pillow tqdm pytest
+.venv/bin/python -m pytest -q tests
+```
+
+`tools/exit_repro.py` è una prova manuale del crash alla chiusura corretto in `run.py`. Serve l'installazione completa con il modello WD14 in cache: `~/image-dataset-studio/venv/bin/python -I tools/exit_repro.py tags --runs 8` (il crash è intermittente, quindi la prova si ripete più volte; codice di uscita 1 se almeno un avvio va in crash).
 
 ## Licenza
 
