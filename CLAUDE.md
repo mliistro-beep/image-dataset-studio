@@ -15,7 +15,7 @@ App desktop (PySide6) per preparare dataset di addestramento LoRA:
 - **Batch Caption**: caption in linguaggio naturale con VLM (Florence-2, moondream2, JoyCaption 4-bit) in `dataset_captions/`.
 - **Singola Immagine**: analisi al volo / estrazione prompt, senza scrivere su disco.
 
-Interfaccia bilingue IT/EN, licenza **AGPL-3.0-only**, solo Linux come piattaforma di installazione (`install.sh`), Python >= 3.10. Repository: `mliistro-beep/image-dataset-studio`, branch principale `main`.
+Interfaccia in 8 lingue (it, en, es, de, fr, pt_BR, zh_CN, ja), licenza **AGPL-3.0-only**, solo Linux come piattaforma di installazione (`install.sh`), Python >= 3.10. Repository: `mliistro-beep/image-dataset-studio`, branch principale `main`.
 
 ## Comandi
 
@@ -40,7 +40,8 @@ QT_QPA_PLATFORM=offscreen .venv/bin/python ...
 run.py                      avvio: lingua, licenza, MainWindow, chiusura pulita
 dataset_studio/
   config.py                 costanti, modelli, profili VLM, settings.json (load/save)
-  i18n.py, i18n_strings.py  tr(key, **kwargs); catalogo (chiave, it, en)
+  i18n.py, i18n_strings.py  tr(key, **kwargs), LANGUAGE_NAMES; catalogo di riferimento (chiave, it, en)
+  translations/<lingua>.py  le altre lingue: STRINGS = {chiave: testo}
   images.py                 flatten_to_rgb (trasparenza su bianco)
   model_manager.py          ModelManager globale `manager`: un solo modello in memoria
   workers.py                QThread: BatchTagging, BatchCaption, SingleAnalysis
@@ -67,10 +68,14 @@ tools/exit_repro.py         prova manuale del crash alla chiusura, con l'install
 - Le operazioni lente (miniature, I/O su molti file) non vanno nel thread della GUI: vedi `ThumbnailLoader` in `ui/widgets.py`.
 - **Chiusura**: `run.py` distrugge esplicitamente la finestra con `shiboken6.delete(window)` prima di uscire. Senza, Python crasha alla chiusura (SIGSEGV/SIGBUS in `~QObject`). Non reintrodurre `sys.exit()` dentro `main()`. `tests/test_run_exit.py` controlla che la correzione resti; la prova vera, da rilanciare quando si tocca la chiusura, è `~/image-dataset-studio/venv/bin/python -I tools/exit_repro.py tags --runs 8` (crash intermittente: ripetere più volte).
 - Un QThread ancora attivo non va mai distrutto: vedi `MainWindow.closeEvent`.
+- Lo stile è `EmojiSafeStyle` (`ui/main_window.py`): Fusion con i titoli dei `QGroupBox` misurati correttamente con le emoji, che non impongono la larghezza minima e si accorciano con "…". Non tornare a `app.setStyle("Fusion")`. I pulsanti invece non si accorciano: con testi lunghi in una lingua, abbrevia la traduzione.
 
 ## Testi e lingue
 
-- Ogni testo visibile passa da `tr("chiave")` ed è definito in `i18n_strings.py` con **entrambe** le versioni, it ed en, con gli stessi segnaposto `{nome}`.
+- Ogni testo visibile passa da `tr("chiave")`. Una chiave nuova va in `i18n_strings.py` (it, en) **e** in ogni `translations/<lingua>.py`, con gli stessi segnaposto `{nome}` e gli stessi tag HTML: `tests/test_i18n.py` fallisce se ne manca una.
+- Nei testi di pulsanti e titoli la `&` va scritta `&&` (Qt la prende come scorciatoia); il test lo controlla.
+- Le traduzioni oltre a it/en sono fatte con l'IA (dichiarato nei Crediti): correggile se l'utente segnala errori.
+- I crediti (`MODEL_CREDITS`, `LIBRARY_CREDITS` in `config.py`) devono coprire ogni repo di modello e ogni pacchetto dei requirements (`tests/test_credits.py`).
 - I prompt inviati ai VLM restano in inglese (i modelli li capiscono meglio).
 - Le emoji nei testi dell'interfaccia sono volute: non toglierle.
 

@@ -1,7 +1,9 @@
 # Image Dataset Studio — Copyright (C) 2026 Mauro Liistro
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Catalogo dei testi dell'interfaccia: chiave -> {"it": ..., "en": ...}.
+"""Catalogo dei testi dell'interfaccia: chiave -> {"it": ..., "en": ..., altre lingue...}.
+Italiano e inglese sono il riferimento e si scrivono qui; le altre lingue in translations/.
 I segnaposto {nome} vengono riempiti da tr(key, nome=valore)."""
+from .translations import TRANSLATIONS
 
 _ENTRIES = [
     # --- Comuni ---------------------------------------------------------------
@@ -33,8 +35,6 @@ _ENTRIES = [
     ("main.window_title", "{app} — WD14 Tagger · VLM Captioning · Estrazione Prompt",
      "{app} — WD14 Tagger · VLM Captioning · Prompt Extraction"),
     ("main.lang_auto", "🌐 Automatica (sistema)", "🌐 Automatic (system)"),
-    ("main.lang_it", "🇮🇹 Italiano", "🇮🇹 Italiano"),
-    ("main.lang_en", "🇬🇧 English", "🇬🇧 English"),
     ("main.about", "ℹ️ Informazioni / Licenza", "ℹ️ About / License"),
     ("main.no_model", "Nessun modello in memoria", "No model in memory"),
     ("main.in_memory", "In memoria: {model}", "In memory: {model}"),
@@ -82,19 +82,40 @@ _ENTRIES = [
     ("license.file_missing", "File LICENSE non trovato. Il testo completo è disponibile su {url}",
      "LICENSE file not found. The full text is available at {url}"),
     ("about.title", "Informazioni su {app}", "About {app}"),
+    ("about.tab_info", "ℹ️ Informazioni", "ℹ️ About"),
+    ("about.tab_credits", "🙏 Crediti", "🙏 Credits"),
+    ("about.tab_license", "📜 Licenza", "📜 License"),
     ("about.body",
      "<h3>{app} {version}</h3><p>Tagging WD14, captioning VLM ed estrazione prompt per dataset LoRA.</p>"
-     "<p>Copyright © {year} {holder}<br>Licenza: <b>{license}</b> — GNU Affero General Public License v3.0.<br>"
-     "Codice sorgente: <a href='{url}'>{url}</a></p>"
-     "<p><b>Modelli</b> (scaricati da HuggingFace, non distribuiti con il programma): WD14 Tagger — Apache-2.0 · "
-     "Florence-2 — MIT · moondream2 — Apache-2.0 · JoyCaption — Llama 3.1 Community License.</p>"
-     "<p>Questo programma è distribuito SENZA ALCUNA GARANZIA. Testo completo della licenza:</p>",
+     "<p>Copyright © {year} {holder}<br>Licenza: <b>{license}</b> — GNU Affero General Public License v3.0.</p>"
+     "<p>Autore: <b>{holder}</b> — GitHub <a href='{author_url}'>{author_url}</a><br>"
+     "Codice sorgente: <a href='{url}'>{url}</a><br>"
+     "Segnalazioni e suggerimenti: <a href='{issues_url}'>{issues_url}</a></p>"
+     "<p>Questo programma è distribuito SENZA ALCUNA GARANZIA. Il testo completo della licenza è nella scheda Licenza; "
+     "modelli e librerie usati sono elencati nella scheda Crediti.</p>",
      "<h3>{app} {version}</h3><p>WD14 tagging, VLM captioning and prompt extraction for LoRA datasets.</p>"
-     "<p>Copyright © {year} {holder}<br>License: <b>{license}</b> — GNU Affero General Public License v3.0.<br>"
-     "Source code: <a href='{url}'>{url}</a></p>"
-     "<p><b>Models</b> (downloaded from HuggingFace, not distributed with the program): WD14 Tagger — Apache-2.0 · "
-     "Florence-2 — MIT · moondream2 — Apache-2.0 · JoyCaption — Llama 3.1 Community License.</p>"
-     "<p>This program comes with ABSOLUTELY NO WARRANTY. Full license text:</p>"),
+     "<p>Copyright © {year} {holder}<br>License: <b>{license}</b> — GNU Affero General Public License v3.0.</p>"
+     "<p>Author: <b>{holder}</b> — GitHub <a href='{author_url}'>{author_url}</a><br>"
+     "Source code: <a href='{url}'>{url}</a><br>"
+     "Bug reports and suggestions: <a href='{issues_url}'>{issues_url}</a></p>"
+     "<p>This program comes with ABSOLUTELY NO WARRANTY. The full license text is in the License tab; "
+     "the models and libraries used are listed in the Credits tab.</p>"),
+    ("credits.models_title", "Modelli di intelligenza artificiale", "AI models"),
+    ("credits.models_note",
+     "Non sono distribuiti con il programma: vengono scaricati da HuggingFace al primo uso e sono soggetti alle rispettive licenze.",
+     "They are not distributed with the program: they are downloaded from HuggingFace on first use and are subject to their own licenses."),
+    ("credits.joycaption_license",
+     "il modello non dichiara una licenza propria; deriva da Llama 3.1 8B Instruct (Llama 3.1 Community License) e da SigLIP 2 (Apache-2.0)",
+     "the model declares no license of its own; it is derived from Llama 3.1 8B Instruct (Llama 3.1 Community License) and SigLIP 2 (Apache-2.0)"),
+    ("credits.libraries_title", "Librerie open source", "Open-source libraries"),
+    ("credits.libraries_note", "Installate da PyPI, ognuna con la propria licenza. Grazie a chi le sviluppa.",
+     "Installed from PyPI, each under its own license. Thanks to everyone who develops them."),
+    ("credits.translations_title", "Traduzioni", "Translations"),
+    ("credits.translations_body",
+     "Le lingue diverse da italiano e inglese sono state tradotte con l'aiuto dell'intelligenza artificiale e possono contenere "
+     "imprecisioni: correzioni e nuove lingue sono benvenute su <a href='{issues_url}'>GitHub</a>.",
+     "Languages other than Italian and English were translated with the help of AI and may contain inaccuracies: "
+     "corrections and new languages are welcome on <a href='{issues_url}'>GitHub</a>."),
 
     # --- Riquadro dataset ---------------------------------------------------------
     ("source.folder", "📁 Cartella", "📁 Folder"),
@@ -209,8 +230,8 @@ _ENTRIES = [
     ("tag.max_tags", "Max tag totali (0 = illimitati):", "Max total tags (0 = unlimited):"),
     ("tag.max_tags_tip", "Limita il numero massimo di tag salvati per immagine.", "Limits the maximum number of tags saved per image."),
     ("tag.append", "Aggiungi in coda (Append)", "Append to existing"),
-    ("tag.mass_edit", "🧹 Mass Tag Editor & Cleaner", "🧹 Mass Tag Editor & Cleaner"),
-    ("tag.rules_box", "🏷️ Regole Tag Personalizzati, Trigger & Filtri", "🏷️ Custom Tag Rules, Trigger & Filters"),
+    ("tag.mass_edit", "🧹 Mass Tag Editor && Cleaner", "🧹 Mass Tag Editor && Cleaner"),
+    ("tag.rules_box", "🏷️ Regole Tag Personalizzati, Trigger && Filtri", "🏷️ Custom Tag Rules, Trigger && Filters"),
     ("tag.trigger", "Trigger Word (Prefisso):", "Trigger Word (Prefix):"),
     ("tag.trigger_ph", "es. ohwx_animeperson", "e.g. ohwx_animeperson"),
     ("tag.trigger_tip", "Parola chiave inserita all'inizio dei tag", "Keyword inserted at the beginning of the tags"),
@@ -383,9 +404,8 @@ _ENTRIES = [
     ("single.mode_both_short", "Tag + Naturale", "Tags + Natural"),
     ("single.apply_rules", "Applica trigger word / prepend / postpend della scheda Batch Tag",
      "Apply trigger word / prepend / postpend from the Batch Tag tab"),
-    ("single.models_in_use",
-     "Modelli in uso — WD14: {wd14} · VLM: {vlm}\n(soglie, modelli e istruzione si impostano nelle schede Batch Tag e Batch Caption; i due modelli vengono caricati uno alla volta)",
-     "Models in use — WD14: {wd14} · VLM: {vlm}\n(thresholds, models and instruction are set in the Batch Tag and Batch Caption tabs; the two models are loaded one at a time)"),
+    ("single.models_in_use", "Modelli in uso — WD14: {wd14} · VLM: {vlm}", "Models in use — WD14: {wd14} · VLM: {vlm}"),
+    ("single.models_hint", "Soglie, modelli e istruzione si impostano nelle schede Batch Tag e Batch Caption; i due modelli vengono caricati uno alla volta", "Thresholds, models and instruction are set in the Batch Tag and Batch Caption tabs; the two models are loaded one at a time"),
     ("single.analyze", "🔎 ANALIZZA IMMAGINE", "🔎 ANALYZE IMAGE"),
     ("single.result_box", "📝 Prompt assemblato (modificabile)", "📝 Assembled prompt (editable)"),
     ("single.result_ph", "Il prompt estratto comparirà qui. Ordine: tag, poi descrizione naturale.",
@@ -452,4 +472,8 @@ _ENTRIES = [
     ("worker.single_captioning", "Generazione descrizione in corso...", "Generating description..."),
 ]
 
-STRINGS = {key: {"it": it, "en": en} for key, it, en in _ENTRIES}
+# Le altre lingue stanno in translations/<lingua>.py come chiave -> testo; una chiave mancante ricade sull'inglese
+STRINGS = {
+    key: {"it": it, "en": en, **{lang: texts[key] for lang, texts in TRANSLATIONS.items() if key in texts}}
+    for key, it, en in _ENTRIES
+}

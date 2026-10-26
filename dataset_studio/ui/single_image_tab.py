@@ -108,20 +108,22 @@ class SingleImageTab(QWidget):
         opts = QGroupBox(tr("single.what_box"))
         ov = QVBoxLayout(opts)
         self.mode_group = QButtonGroup(self)
-        modes_row = QHBoxLayout()
+        # Una scelta per riga: in tedesco o francese tre sulla stessa riga non entrano nella colonna
+        modes_layout = QVBoxLayout()
         for key in ("tags", "caption", "both"):
             rb = QRadioButton(tr(f"single.mode_{key}"))
             rb.setProperty("mode", key)
             self.mode_group.addButton(rb)
-            modes_row.addWidget(rb)
+            modes_layout.addWidget(rb)
             if key == "both":
                 rb.setChecked(True)
-        ov.addLayout(modes_row)
+        ov.addLayout(modes_layout)
         self.chk_rules = QCheckBox(tr("single.apply_rules"))
         ov.addWidget(self.chk_rules)
         self.lbl_models = QLabel("")
         self.lbl_models.setWordWrap(True)
         self.lbl_models.setStyleSheet("color: #aaaaaa; font-size: 11px;")
+        self.lbl_models.setToolTip(tr("single.models_hint"))
         ov.addWidget(self.lbl_models)
         cv.addWidget(opts)
 
