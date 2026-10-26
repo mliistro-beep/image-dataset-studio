@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..config import APP_NAME, load_settings, save_settings
-from ..i18n import tr
+from ..i18n import LANGUAGE_NAMES, tr
 from ..engines import wd14, vlm
 from ..model_manager import manager
 from .batch_caption_tab import BatchCaptionTab
@@ -39,9 +39,10 @@ class MainWindow(QMainWindow):
         header.addWidget(title)
         header.addStretch()
         self.combo_lang = QComboBox()
-        self.combo_lang.setToolTip("Lingua / Language")
-        for code, key in (("auto", "main.lang_auto"), ("it", "main.lang_it"), ("en", "main.lang_en")):
-            self.combo_lang.addItem(tr(key), code)
+        self.combo_lang.setToolTip("Language")
+        self.combo_lang.addItem(tr("main.lang_auto"), "auto")
+        for code, name in LANGUAGE_NAMES.items():
+            self.combo_lang.addItem(name, code)
         self.combo_lang.setCurrentIndex(max(self.combo_lang.findData(load_settings().get("language", "auto")), 0))
         self.combo_lang.currentIndexChanged.connect(self._on_language_changed)
         header.addWidget(self.combo_lang)
