@@ -252,19 +252,21 @@ class SingleImageTab(QWidget):
         )
         self.worker.progress_signal.connect(lambda msg, _p: self.lbl_status.setText(msg))
         self.worker.log_signal.connect(self.log_signal)
-        self.worker.result_signal.connect(lambda t, c: self._on_result(t, c, mode))
+        # Immagine e nome fissati ora: durante l'analisi l'utente può caricarne un'altra
+        image, name = self.current_image, self.current_name
+        self.worker.result_signal.connect(lambda t, c: self._on_result(t, c, mode, image, name))
         self.worker.error_signal.connect(self._on_error)
         self.worker.finished.connect(lambda: self.btn_analyze.setEnabled(self.current_image is not None))
         manager.register_worker(self.worker)
         self.worker.start()
 
-    def _on_result(self, tags: str, caption: str, mode: str):
+    def _on_result(self, tags: str, caption: str, mode: str, image: Image.Image, name: str):
         # Ordine richiesto: tag prima, descrizione naturale dopo
         prompt = "\n\n".join(p for p in (tags.strip(), caption.strip()) if p)
         self.txt_result.setPlainText(prompt)
         self.lbl_status.setText(tr("single.done"))
-        self.log_signal.emit(tr("single.log_done", name=self.current_name, mode=tr(MODE_LABELS[mode])))
-        self._add_history(prompt, mode)
+        self.log_signal.emit(tr("single.log_done", name=name, mode=tr(MODE_LABELS[mode])))
+        self._add_history(prompt, mode, image, name)
 
     def _on_error(self, message: str):
         self.lbl_status.setText(tr("single.error_status"))
@@ -279,14 +281,13 @@ class SingleImageTab(QWidget):
         self.lbl_status.setText(tr("single.copied"))
 
     # ------------------------------------------------------------------
-    def _add_history(self, prompt: str, mode: str):
+    def _add_history(self, prompt: str, mode: str, image: Image.Image, name: str):
         # Copie ridotte per contenere la RAM (1536 = risoluzione massima di Anima)
-        assert self.current_image is not None   # la cronologia si aggiorna solo dopo un'analisi
-        stored = self.current_image.copy()
+        stored = image.copy()
         stored.thumbnail((1536, 1536))
         thumb = stored.copy()
         thumb.thumbnail((256, 256))
-        entry = {"image": stored, "thumb": thumb, "name": self.current_name,
+        entry = {"image": stored, "thumb": thumb, "name": name,
                  "prompt": prompt, "mode": mode, "time": datetime.now().strftime("%H:%M:%S")}
         self.history.insert(0, entry)
         del self.history[HISTORY_SIZE:]
