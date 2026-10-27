@@ -3,6 +3,7 @@
 """Scheda Analisi Singola Immagine / Estrazione Prompt: nessun salvataggio su disco."""
 import os
 from datetime import datetime
+from typing import Optional
 
 from PIL import Image
 from PySide6.QtCore import Qt, QSize, Signal
@@ -26,7 +27,7 @@ MODE_LABELS = {"tags": "single.mode_tags_short", "caption": "single.mode_caption
 
 def qimage_to_pil(qimg: QImage) -> Image.Image:
     # RGBA8888 conserva l'alfa, che flatten_to_rgb compone su bianco
-    qimg = qimg.convertToFormat(QImage.Format_RGBA8888)
+    qimg = qimg.convertToFormat(QImage.Format.Format_RGBA8888)
     ptr = qimg.constBits()
     data = bytes(ptr)[: qimg.bytesPerLine() * qimg.height()]
     img = Image.frombuffer("RGBA", (qimg.width(), qimg.height()), data, "raw", "RGBA", qimg.bytesPerLine(), 1)
@@ -66,18 +67,18 @@ class SingleImageTab(QWidget):
         # Le impostazioni WD14 e VLM vengono lette dalle schede Batch
         self.tag_tab = tag_tab
         self.caption_tab = caption_tab
-        self.current_image: Image.Image = None
+        self.current_image: Optional[Image.Image] = None
         self.current_name = ""
         self.history = []   # lista di dict, solo in memoria
         self.worker = None
         self._build_ui()
 
-        QShortcut(QKeySequence.Paste, self, activated=self.paste_from_clipboard)
+        QShortcut(QKeySequence.StandardKey.Paste, self).activated.connect(self.paste_from_clipboard)
 
     def _build_ui(self):
         root = QHBoxLayout(self)
         root.setContentsMargins(4, 4, 4, 4)
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # --- Colonna sinistra: immagine ---
         left = QGroupBox(tr("single.image_box"))
@@ -179,7 +180,9 @@ class SingleImageTab(QWidget):
 
     # ------------------------------------------------------------------
     def mode(self) -> str:
-        return self.mode_group.checkedButton().property("mode")
+        button = self.mode_group.checkedButton()
+        assert button is not None   # i pulsanti sono esclusivi e uno è selezionato alla costruzione
+        return button.property("mode")
 
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(self, tr("single.open_title"), "", image_file_filter())
@@ -278,6 +281,7 @@ class SingleImageTab(QWidget):
     # ------------------------------------------------------------------
     def _add_history(self, prompt: str, mode: str):
         # Copie ridotte per contenere la RAM (1536 = risoluzione massima di Anima)
+        assert self.current_image is not None   # la cronologia si aggiorna solo dopo un'analisi
         stored = self.current_image.copy()
         stored.thumbnail((1536, 1536))
         thumb = stored.copy()
@@ -293,17 +297,18 @@ class SingleImageTab(QWidget):
         for i, e in enumerate(self.history):
             item = QListWidgetItem(f"{e['time']} · {tr(MODE_LABELS[e['mode']])}\n{e['name']}")
             data = e["thumb"].tobytes("raw", "RGB")
-            qimg = QImage(data, e["thumb"].width, e["thumb"].height, e["thumb"].width * 3, QImage.Format_RGB888).copy()
+            qimg = QImage(data, e["thumb"].width, e["thumb"].height, e["thumb"].width * 3,
+                          QImage.Format.Format_RGB888).copy()
             item.setIcon(QIcon(QPixmap.fromImage(qimg)))
             item.setToolTip(e["prompt"][:500])
-            item.setData(Qt.UserRole, i)
+            item.setData(Qt.ItemDataRole.UserRole, i)
             self.list_history.addItem(item)
 
     def _restore_history(self, item: QListWidgetItem):
-        e = self.history[item.data(Qt.UserRole)]
+        e = self.history[item.data(Qt.ItemDataRole.UserRole)]
         img = e["image"]
         data = img.tobytes("raw", "RGB")
-        qimg = QImage(data, img.width, img.height, img.width * 3, QImage.Format_RGB888).copy()
+        qimg = QImage(data, img.width, img.height, img.width * 3, QImage.Format.Format_RGB888).copy()
         self._set_image(img, e["name"], QPixmap.fromImage(qimg))
         self.txt_result.setPlainText(e["prompt"])
         self.lbl_status.setText(tr("single.restored", time=e['time']))

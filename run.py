@@ -25,7 +25,7 @@ def main() -> int:
     from dataset_studio.ui.main_window import MainWindow, apply_dark_palette
 
     apply_dark_palette(app)
-    if not license_accepted() and LicenseAcceptDialog().exec() != QDialog.Accepted:
+    if not license_accepted() and LicenseAcceptDialog().exec() != QDialog.DialogCode.Accepted:
         return 0
 
     window = MainWindow()
