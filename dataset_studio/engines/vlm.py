@@ -140,11 +140,13 @@ class Florence2Backend(VLMBackend):
     def load(self, log_cb, progress_cb, should_stop=lambda: False):
         from transformers import AutoProcessor, Florence2ForConditionalGeneration
         repo = self.info["repo"]
-        download_snapshot(repo, None, log_cb, progress_cb, should_stop)
+        revision = self.info.get("revision")
+        download_snapshot(repo, revision, log_cb, progress_cb, should_stop)
         progress_cb(tr("vlm.loading", model=self.info['label']), 100.0)
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
-        self.processor = AutoProcessor.from_pretrained(repo)
-        self.model = Florence2ForConditionalGeneration.from_pretrained(repo, dtype=self.dtype).to(self.device)
+        self.processor = AutoProcessor.from_pretrained(repo, revision=revision)
+        self.model = Florence2ForConditionalGeneration.from_pretrained(
+            repo, revision=revision, dtype=self.dtype).to(self.device)
         self.model.eval()
 
     def caption(self, image, instruction, max_new_tokens=256):
@@ -194,7 +196,8 @@ class JoyCaptionBackend(VLMBackend):
     def load(self, log_cb, progress_cb, should_stop=lambda: False):
         from transformers import AutoProcessor, BitsAndBytesConfig, LlavaForConditionalGeneration
         repo = self.info["repo"]
-        download_snapshot(repo, None, log_cb, progress_cb, should_stop)
+        revision = self.info.get("revision")
+        download_snapshot(repo, revision, log_cb, progress_cb, should_stop)
         progress_cb(tr("vlm.loading_vram", model=self.info['label']), 100.0)
         quant_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -204,9 +207,9 @@ class JoyCaptionBackend(VLMBackend):
             # La torre visiva SigLIP e il proiettore restano in bf16: quantizzarli degrada molto la qualità
             llm_int8_skip_modules=["vision_tower", "multi_modal_projector"],
         )
-        self.processor = AutoProcessor.from_pretrained(repo)
+        self.processor = AutoProcessor.from_pretrained(repo, revision=revision)
         self.model = LlavaForConditionalGeneration.from_pretrained(
-            repo, quantization_config=quant_config, dtype=torch.bfloat16, device_map=0,
+            repo, revision=revision, quantization_config=quant_config, dtype=torch.bfloat16, device_map=0,
         )
         self.model.eval()
 
