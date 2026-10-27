@@ -10,6 +10,9 @@ from ..config import VLM_MODELS, FLORENCE_TASKS, IS_MAC
 from ..i18n import tr
 from ..images import flatten_to_rgb
 
+# Sotto questa dimensione un contatore di byte non viene mostrato (solo file di configurazione)
+MIN_REPORTED_BYTES = 1048576
+
 try:
     import torch
 except ImportError:
@@ -66,23 +69,36 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
     from huggingface_hub import snapshot_download
     from tqdm.auto import tqdm as base_tqdm
 
+    # huggingface_hub 2.x con hf_xet usa insieme due contatori di byte (rete e scrittura su disco) e uno dei
+    # file: si mostra solo il più avanti dei contatori di byte, e il numero di file solo se non ce ne sono.
+    reported = {"bytes_seen": False, "bytes_done": 0}
+
     class _ProgressTqdm(base_tqdm):
         def __init__(self, *args, **kwargs):
             kwargs["disable"] = False
             super().__init__(*args, **kwargs)
+            # Il contatore dei byte nasce prima di quello dei file, anche se i primi byte arrivano dopo
+            if self.unit == "B":
+                reported["bytes_seen"] = True
 
         def update(self, n=1):
             super().update(n)
             # Dopo uno stop il download continua in background: l'interfaccia non va più aggiornata
-            if self.total and not should_stop():
-                pct = self.n / self.total * 100
-                unit_mb = self.unit == "B"
-                if unit_mb:
-                    msg = tr("vlm.download_mb", repo=repo_id, done=f"{self.n / 1048576:.0f}",
-                             total=f"{self.total / 1048576:.0f}", percent=f"{pct:.1f}")
-                else:
-                    msg = tr("vlm.download_files", repo=repo_id, done=self.n, total=self.total)
-                progress_cb(msg, pct)
+            if not self.total or should_stop():
+                return
+            pct = self.n / self.total * 100
+            if self.unit == "B":
+                # Sotto 1 MB sono solo i file di configurazione iniziali: "0/0 MB (100%)" confonde
+                if self.total < MIN_REPORTED_BYTES or self.n < reported["bytes_done"]:
+                    return
+                reported["bytes_done"] = self.n
+                msg = tr("vlm.download_mb", repo=repo_id, done=f"{self.n / 1048576:.0f}",
+                         total=f"{self.total / 1048576:.0f}", percent=f"{pct:.1f}")
+            elif reported["bytes_seen"]:
+                return
+            else:
+                msg = tr("vlm.download_files", repo=repo_id, done=self.n, total=self.total)
+            progress_cb(msg, pct)
 
     # snapshot_download non è interrompibile: gira in un thread separato e qui si controlla lo stop.
     # Se si ferma, il download prosegue in background fino alla chiusura dell'app; i file parziali
