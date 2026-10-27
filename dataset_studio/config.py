@@ -5,6 +5,51 @@ import os
 import platform
 import shutil
 import tempfile
+from typing import Dict, List, TypedDict
+
+
+class WD14ModelInfo(TypedDict):
+    repo: str
+    size: int
+    name: str
+    hint: str
+
+
+class VLMModelInfo(TypedDict):
+    label: str
+    backend: str
+    repo: str
+    revision: str
+
+
+class _VLMProfileBase(TypedDict):
+    label: str
+    models: List[str]
+    device: str
+
+
+class VLMProfile(_VLMProfileBase, total=False):
+    low_memory: bool
+
+
+class _ModelCreditBase(TypedDict):
+    name: str
+    author: str
+    url: str
+    license: str
+    repos: List[str]
+
+
+class ModelCredit(_ModelCreditBase, total=False):
+    license_note: str
+
+
+class LibraryCredit(TypedDict):
+    name: str
+    url: str
+    license: str
+    packages: List[str]
+
 
 APP_NAME = "Image Dataset Studio"
 APP_VERSION = "0.1.0"
@@ -17,7 +62,7 @@ AUTHOR_URL = "https://github.com/mliistro-beep"
 
 # Le chiavi restano quelle dello script originale (sono salvate nei settings come "last_model");
 # "name" + "hint" (chiave i18n) formano il testo mostrato nell'interfaccia.
-AVAILABLE_MODELS = {
+AVAILABLE_MODELS: Dict[str, WD14ModelInfo] = {
     "WD14 ConvNeXtV2 (Consigliato per SDXL/Pony)": {
         "repo": "SmilingWolf/wd-v1-4-convnextv2-tagger-v2",
         "size": 448,
@@ -42,7 +87,7 @@ AVAILABLE_MODELS = {
 # backend: chiave della classe in engines/vlm.py
 # revision: commit (o tag) fisso su HuggingFace, così un aggiornamento del repo non cambia il modello
 # né il codice scaricato senza che lo si sia provato. Per aggiornarlo, prova il nuovo commit e cambia qui.
-VLM_MODELS = {
+VLM_MODELS: Dict[str, VLMModelInfo] = {
     "florence2_large": {
         "label": "Florence-2-large (0.77B)",
         "backend": "florence2",
@@ -71,7 +116,7 @@ VLM_MODELS = {
 
 # Crediti mostrati in Informazioni. I modelli non sono distribuiti con il programma: si scaricano da HuggingFace
 # con la loro licenza. "license_note" è una chiave i18n per i casi in cui la licenza va spiegata.
-MODEL_CREDITS = [
+MODEL_CREDITS: List[ModelCredit] = [
     {
         "name": "WD14 Tagger v2 (ConvNeXtV2, SwinV2, MOAT)",
         "author": "SmilingWolf",
@@ -104,7 +149,7 @@ MODEL_CREDITS = [
 ]
 
 # Librerie usate a runtime; "packages" sono i nomi nei requirements (un test controlla che ci siano tutti)
-LIBRARY_CREDITS = [
+LIBRARY_CREDITS: List[LibraryCredit] = [
     {"name": "Qt for Python (PySide6)", "url": "https://doc.qt.io/qtforpython-6/", "license": "LGPL-3.0",
      "packages": ["PySide6-Essentials"]},
     {"name": "ONNX Runtime", "url": "https://onnxruntime.ai", "license": "MIT",
@@ -124,7 +169,7 @@ LIBRARY_CREDITS = [
 ]
 
 # Profili hardware: il primo modello della lista è quello consigliato. "label" è una chiave i18n.
-VLM_PROFILES = {
+VLM_PROFILES: Dict[str, VLMProfile] = {
     "universal": {
         "label": "profile.universal",
         "models": ["florence2_large", "moondream2"],

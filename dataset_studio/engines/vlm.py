@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Backend VLM per il captioning in linguaggio naturale, con interfaccia comune."""
 import gc
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from PIL import Image
 
@@ -118,8 +118,9 @@ class VLMBackend:
         self.info = VLM_MODELS[model_key]
         self.device = device
         self.low_memory = low_memory
-        self.model = None
-        self.processor = None
+        # Any: sono classi di transformers o codice remoto (moondream2), senza tipi utili
+        self.model: Any = None
+        self.processor: Any = None
 
     def load(self, log_cb, progress_cb, should_stop=lambda: False):
         raise NotImplementedError

@@ -4,6 +4,7 @@
 import os
 from datetime import datetime
 from html import escape
+from typing import Any, Mapping
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -37,7 +38,7 @@ def license_accepted() -> bool:
 def _notice_label(text: str) -> QLabel:
     lbl = QLabel(text)
     lbl.setWordWrap(True)
-    lbl.setTextFormat(Qt.RichText)
+    lbl.setTextFormat(Qt.TextFormat.RichText)
     lbl.setOpenExternalLinks(True)
     return lbl
 
@@ -68,8 +69,8 @@ class LicenseAcceptDialog(QDialog):
         self.btn_accept = QPushButton(tr("license.accept"))
         self.btn_accept.setEnabled(False)
         btn_reject = QPushButton(tr("license.reject"))
-        buttons.addButton(self.btn_accept, QDialogButtonBox.AcceptRole)
-        buttons.addButton(btn_reject, QDialogButtonBox.RejectRole)
+        buttons.addButton(self.btn_accept, QDialogButtonBox.ButtonRole.AcceptRole)
+        buttons.addButton(btn_reject, QDialogButtonBox.ButtonRole.RejectRole)
         buttons.accepted.connect(self._accept)
         buttons.rejected.connect(self.reject)
         self.chk_accept.toggled.connect(self.btn_accept.setEnabled)
@@ -80,7 +81,7 @@ class LicenseAcceptDialog(QDialog):
         self.accept()
 
 
-def _credit_item(credit: dict) -> str:
+def _credit_item(credit: Mapping[str, Any]) -> str:
     license_text = escape(credit["license"])
     if credit.get("license_note"):
         license_text += f" — <i>{escape(tr(credit['license_note']))}</i>"
@@ -123,6 +124,6 @@ class AboutDialog(QDialog):
         tabs.addTab(_license_view(), tr("about.tab_license"))
         v.addWidget(tabs, stretch=1)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self.reject)
         v.addWidget(buttons)

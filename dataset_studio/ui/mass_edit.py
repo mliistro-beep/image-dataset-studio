@@ -3,7 +3,7 @@
 """Mass Tag Editor & Cleaner: logica dello script originale, testi localizzati, avviso sulle modifiche non salvate."""
 import os
 from collections import Counter
-from typing import List
+from typing import List, Optional
 
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QPixmap, QIcon, QImage
@@ -29,7 +29,7 @@ class MassEditWidget(QWidget):
         self.image_folder = ""
         self.image_files = []
         self.dataset_data = {}  # {filename: [list_of_tags]}
-        self.tag_counter = Counter()
+        self.tag_counter: Counter[str] = Counter()
         self.selected_tag_filter = None
         self.checked_tags = set()   # spunte conservate anche per i tag nascosti dal filtro
         self.dirty = False          # modifiche in memoria non ancora scritte su disco
@@ -46,7 +46,7 @@ class MassEditWidget(QWidget):
         layout.setSpacing(6)
 
         # Main Splitter: Sinistra (Tabella Tag & Bulk Tools) | Destra (Galleria Filtrata & Ispettore)
-        main_splitter = QSplitter(Qt.Horizontal)
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # --- PANNELLO SINISTRO (Tabella Tag & Operazioni in Massa) ---
         left_panel = QWidget()
@@ -89,11 +89,11 @@ class MassEditWidget(QWidget):
         self.table_tags = QTableWidget()
         self.table_tags.setColumnCount(4)
         self.table_tags.setHorizontalHeaderLabels(["[ ]", tr("mass.col_tag"), tr("mass.col_freq"), tr("mass.col_cover")])
-        self.table_tags.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.table_tags.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.table_tags.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.table_tags.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        self.table_tags.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table_tags.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.table_tags.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table_tags.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.table_tags.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.table_tags.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table_tags.setSortingEnabled(True)
         self.table_tags.itemSelectionChanged.connect(self._on_tag_table_selection_changed)
         self.table_tags.itemChanged.connect(self._on_tag_item_changed)
@@ -115,7 +115,7 @@ class MassEditWidget(QWidget):
         # Operazioni in Massa (Bulk Tools)
         bulk_group = QGroupBox(tr("mass.bulk_box"))
         bulk_layout = QGridLayout(bulk_group)
-        bulk_layout.setAlignment(Qt.AlignTop)
+        bulk_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         bulk_layout.setContentsMargins(6, 6, 6, 6)
 
         # Rinomina / Sostituisci
@@ -173,7 +173,7 @@ class MassEditWidget(QWidget):
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
 
-        right_splitter = QSplitter(Qt.Vertical)
+        right_splitter = QSplitter(Qt.Orientation.Vertical)
 
         # Galleria Immagini Filtrata
         gallery_group = QGroupBox(tr("mass.gallery_box"))
@@ -193,12 +193,12 @@ class MassEditWidget(QWidget):
         # Ispettore Immagine Selezionata
         inspector_group = QGroupBox(tr("mass.inspector_box"))
         inspector_layout = QHBoxLayout(inspector_group)
-        inspector_layout.setAlignment(Qt.AlignTop)
+        inspector_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.lbl_inspector_preview = ZoomableImageView()
         inspector_layout.addWidget(self.lbl_inspector_preview, stretch=2)
         edit_single_layout = QVBoxLayout()
-        edit_single_layout.setAlignment(Qt.AlignTop)
+        edit_single_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.lbl_single_filename = QLabel(tr("mass.select_photo"))
         self.lbl_single_filename.setStyleSheet("font-weight: bold;")
@@ -286,8 +286,9 @@ class MassEditWidget(QWidget):
 
             # Colonna 0: Checkbox
             chk_item = QTableWidgetItem()
-            chk_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
-            chk_item.setCheckState(Qt.Checked if tag in self.checked_tags else Qt.Unchecked)
+            chk_item.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled
+                              | Qt.ItemFlag.ItemIsSelectable)
+            chk_item.setCheckState(Qt.CheckState.Checked if tag in self.checked_tags else Qt.CheckState.Unchecked)
             self.table_tags.setItem(row, 0, chk_item)
 
             # Colonna 1: Nome Tag
@@ -296,15 +297,15 @@ class MassEditWidget(QWidget):
 
             # Colonna 2: Conteggio (Numerico per sorting corretto)
             count_item = NumericTableWidgetItem(str(count))
-            count_item.setData(Qt.UserRole, count)
-            count_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            count_item.setData(Qt.ItemDataRole.UserRole, count)
+            count_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.table_tags.setItem(row, 2, count_item)
 
             # Colonna 3: Copertura Percentuale
             pct = (count / total_imgs) * 100
             pct_item = NumericTableWidgetItem(f"{pct:.1f}%")
-            pct_item.setData(Qt.UserRole, pct)
-            pct_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            pct_item.setData(Qt.ItemDataRole.UserRole, pct)
+            pct_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.table_tags.setItem(row, 3, pct_item)
 
             row += 1
@@ -319,7 +320,7 @@ class MassEditWidget(QWidget):
         tag_item = self.table_tags.item(item.row(), 1)
         if tag_item is None:
             return
-        if item.checkState() == Qt.Checked:
+        if item.checkState() == Qt.CheckState.Checked:
             self.checked_tags.add(tag_item.text())
         else:
             self.checked_tags.discard(tag_item.text())
@@ -337,7 +338,7 @@ class MassEditWidget(QWidget):
         self.refresh_gallery()
 
     def _set_all_checks(self, checked: bool):
-        state = Qt.Checked if checked else Qt.Unchecked
+        state = Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
         for r in range(self.table_tags.rowCount()):
             item = self.table_tags.item(r, 0)
             if item:
@@ -356,7 +357,7 @@ class MassEditWidget(QWidget):
             self.entry_replace_old.setText(tag_name)
             self.refresh_gallery(filter_tag=tag_name)
 
-    def refresh_gallery(self, filter_tag: str = None):
+    def refresh_gallery(self, filter_tag: Optional[str] = None):
         """Aggiorna la galleria immagini filtrando per il tag selezionato."""
         self.list_gallery_mass.blockSignals(True)
         self.list_gallery_mass.clear()
@@ -513,11 +514,11 @@ class MassEditWidget(QWidget):
             self,
             tr("mass.confirm_delete_title"),
             tr("mass.confirm_delete_body", count=len(checked_tags)) + "\n\n" + ", ".join(checked_tags[:10]) + ("..." if len(checked_tags) > 10 else ""),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
 
-        if confirm != QMessageBox.Yes:
+        if confirm != QMessageBox.StandardButton.Yes:
             return
 
         delete_set = set(checked_tags)
@@ -607,13 +608,14 @@ class MassEditWidget(QWidget):
         """Chiede cosa fare delle modifiche non salvate. False se l'utente annulla (o il salvataggio fallisce)."""
         if not self.dirty:
             return True
-        buttons = QMessageBox.Save | QMessageBox.Discard
+        buttons = QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard
         if allow_cancel:
-            buttons |= QMessageBox.Cancel
-        answer = QMessageBox.question(self, tr("mass.unsaved_title"), tr("mass.unsaved_body"), buttons, QMessageBox.Save)
-        if answer == QMessageBox.Save:
+            buttons |= QMessageBox.StandardButton.Cancel
+        answer = QMessageBox.question(self, tr("mass.unsaved_title"), tr("mass.unsaved_body"), buttons,
+                                      QMessageBox.StandardButton.Save)
+        if answer == QMessageBox.StandardButton.Save:
             return self.save_all_changes_to_disk(quiet=True) or not allow_cancel
-        if answer == QMessageBox.Discard:
+        if answer == QMessageBox.StandardButton.Discard:
             self.dirty = False
             self.log_signal.emit(tr("mass.log_discarded"))
             return True

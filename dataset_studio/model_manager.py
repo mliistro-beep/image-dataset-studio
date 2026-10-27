@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Unico proprietario del modello in memoria: WD14 e VLM non vengono mai tenuti caricati insieme."""
 import threading
-from typing import Optional
+from typing import Any, Optional
 
 from PySide6.QtCore import QObject, Signal
 
@@ -20,7 +20,7 @@ class ModelManager(QObject):
         self._lock = threading.RLock()
         self.kind: Optional[str] = None   # None | "wd14" | "vlm"
         self.key: Optional[str] = None
-        self.model = None
+        self.model: Any = None   # WD14Model o VLMBackend, secondo self.kind
         self._workers = []
 
     def register_worker(self, worker):
@@ -92,7 +92,7 @@ class ModelManager(QObject):
             return self.model
 
     def describe(self) -> str:
-        if self.model is None:
+        if self.model is None or self.key is None:
             return ""
         if self.kind == "wd14":
             return f"WD14 · {AVAILABLE_MODELS[self.key]['name']}"

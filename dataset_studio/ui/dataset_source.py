@@ -122,11 +122,12 @@ class DatasetSourceBox(QGroupBox):
             if layout.resolve_base_dir(base) == base:
                 answer = QMessageBox.question(
                     self, tr("source.exists_title"), tr("source.exists_body", path=base, count=len(names)),
-                    QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.No)
-                if answer == QMessageBox.Yes:
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+                    QMessageBox.StandardButton.No)
+                if answer == QMessageBox.StandardButton.Yes:
                     created = layout.import_new_images(sources, base)
                     self.log_signal.emit(tr("source.log_imported", count=len(created), first=created[0], last=created[-1]))
-                if answer != QMessageBox.Cancel:
+                if answer != QMessageBox.StandardButton.Cancel:
                     self.set_base(base)
             else:
                 self._first_import(sources, base, tr("source.desc_archive", name=os.path.basename(file_path)))
@@ -139,8 +140,8 @@ class DatasetSourceBox(QGroupBox):
         answer = QMessageBox.question(
             self, tr("source.create_title"),
             tr("source.create_body", source=source_desc, count=len(sources), path=os.path.join(base, ORIGINAL_DIR)),
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if answer != QMessageBox.Yes:
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes)
+        if answer != QMessageBox.StandardButton.Yes:
             return
         try:
             created = layout.first_import(sources, base)

@@ -21,7 +21,7 @@ class _ThumbnailTask(QRunnable):
         reader.setAutoTransform(True)
         size = reader.size()
         if size.isValid():
-            size.scale(self.loader.size, self.loader.size, Qt.KeepAspectRatio)
+            size.scale(self.loader.size, self.loader.size, Qt.AspectRatioMode.KeepAspectRatio)
             reader.setScaledSize(size)
         image = reader.read()
         self.loader._task_done.emit(self.generation, self.key, self.path, self.mtime, image)
@@ -70,8 +70,8 @@ class NumericTableWidgetItem(QTableWidgetItem):
     """QTableWidgetItem personalizzato per consentire un corretto ordinamento numerico."""
     def __lt__(self, other):
         try:
-            val_self = self.data(Qt.UserRole)
-            val_other = other.data(Qt.UserRole)
+            val_self = self.data(Qt.ItemDataRole.UserRole)
+            val_other = other.data(Qt.ItemDataRole.UserRole)
             if val_self is not None and val_other is not None:
                 return float(val_self) < float(val_other)
         except (TypeError, ValueError):
@@ -91,10 +91,10 @@ class ZoomableImageView(QGraphicsView):
         self._scene.addItem(self.pixmap_item)
 
         # Impostazioni di visualizzazione fluide
-        self.setRenderHint(QPainter.SmoothPixmapTransform)
-        self.setRenderHint(QPainter.Antialiasing)
-        self.setDragMode(QGraphicsView.ScrollHandDrag)
-        self.setAlignment(Qt.AlignCenter)
+        self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        self.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumSize(220, 220)
         self.setStyleSheet("background-color: #1e1e1e; border: 1px solid #444;")
 
@@ -109,7 +109,7 @@ class ZoomableImageView(QGraphicsView):
         """Ripristina la trasformazione e adatta l'immagine alla dimensione della vista."""
         self.resetTransform()
         if not self._scene.sceneRect().isEmpty():
-            self.fitInView(self._scene.sceneRect(), Qt.KeepAspectRatio)
+            self.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
     def setText(self, text: str):
         # Fallback per azzerare o mostrare testi (es. "Nessuna foto")
@@ -119,7 +119,7 @@ class ZoomableImageView(QGraphicsView):
 
     def wheelEvent(self, event: QWheelEvent):
         # Ctrl + Rotellina per Zoom in / Zoom out
-        if event.modifiers() == Qt.ControlModifier:
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             zoom_in_factor = 1.15
             zoom_out_factor = 1.0 / zoom_in_factor
 
@@ -132,13 +132,13 @@ class ZoomableImageView(QGraphicsView):
 
     def mouseDoubleClickEvent(self, event):
         """Doppio click per ripristinare lo zoom iniziale."""
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.reset_zoom()
         super().mouseDoubleClickEvent(event)
 
     def keyPressEvent(self, event):
         """Scorciatoia da tastiera: Ctrl+R o R per il reset dello zoom."""
-        if event.key() == Qt.Key_R:
+        if event.key() == Qt.Key.Key_R:
             self.reset_zoom()
         else:
             super().keyPressEvent(event)
