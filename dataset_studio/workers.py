@@ -25,7 +25,7 @@ def pil_to_qimage(img: Image.Image, max_side: Optional[int] = None) -> QImage:
         img.thumbnail((max_side, max_side))
     data = img.tobytes("raw", "RGB")
     # copy(): il QImage non deve dipendere dal buffer Python una volta passato al thread della GUI
-    return QImage(data, img.width, img.height, img.width * 3, QImage.Format_RGB888).copy()
+    return QImage(data, img.width, img.height, img.width * 3, QImage.Format.Format_RGB888).copy()
 
 
 class EtaEstimator:

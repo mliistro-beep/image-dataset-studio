@@ -5,7 +5,7 @@ import os
 import shutil
 import tarfile
 import zipfile
-from typing import List
+from typing import List, Literal
 
 from ..config import IMAGE_EXTENSIONS
 from ..i18n import tr
@@ -46,18 +46,18 @@ def extract_archive(file_path: str, dest_dir: str) -> List[str]:
 
     elif tarfile.is_tarfile(file_path):
         with tarfile.open(file_path, 'r:*') as tf:
-            members = [m for m in tf.getmembers() if m.isfile()]
-            member_dict = {os.path.basename(m.name): m for m in members}
-            for filename, member in member_dict.items():
+            tar_members = [m for m in tf.getmembers() if m.isfile()]
+            tar_member_dict = {os.path.basename(m.name): m for m in tar_members}
+            for filename, tar_member in tar_member_dict.items():
                 if os.path.splitext(filename)[1].lower() in IMAGE_EXTENSIONS:
-                    source_file = tf.extractfile(member)
+                    source_file = tf.extractfile(tar_member)
                     if source_file:
                         with open(os.path.join(dest_dir, filename), "wb") as target_file:
                             shutil.copyfileobj(source_file, target_file)
                         extracted.append(filename)
                     txt_filename = os.path.splitext(filename)[0] + ".txt"
-                    if txt_filename in member_dict:
-                        txt_source = tf.extractfile(member_dict[txt_filename])
+                    if txt_filename in tar_member_dict:
+                        txt_source = tf.extractfile(tar_member_dict[txt_filename])
                         if txt_source:
                             with open(os.path.join(dest_dir, txt_filename), "wb") as txt_file:
                                 shutil.copyfileobj(txt_source, txt_file)
@@ -82,7 +82,7 @@ def create_archive(folder: str, out_dir: str, archive_ext: str = ".zip") -> str:
     if archive_ext == ".zip":
         write_zip(folder, archive_path)
     else:
-        mode = "w:gz" if archive_ext == ".tar.gz" else "w:bz2"
+        mode: Literal["w:gz", "w:bz2"] = "w:gz" if archive_ext == ".tar.gz" else "w:bz2"
         with tarfile.open(archive_path, mode) as tf:
             tf.add(folder, arcname=folder_name)
     return archive_path

@@ -12,7 +12,7 @@ import os
 import re
 import shutil
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from ..config import IMAGE_EXTENSIONS, ORIGINAL_DIR, TAGS_DIR, CAPTIONS_DIR, RENAME_MAP_FILE
 from ..i18n import tr
@@ -85,7 +85,7 @@ def validate_original(original_dir: str) -> Tuple[List[str], List[str]]:
     if not os.path.isdir(original_dir):
         return [tr("layout.dir_not_found", path=original_dir)], []
 
-    stems = {}
+    stems: Dict[int, str] = {}
     for f in sorted(os.listdir(original_dir)):
         full = os.path.join(original_dir, f)
         if not os.path.isfile(full) or f in ALLOWED_EXTRA_FILES or f.startswith("."):

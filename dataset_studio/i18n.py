@@ -57,7 +57,7 @@ def install_qt_translator(app) -> None:
     if _current == "en":
         return
     translator = QTranslator(app)   # il parent lo tiene in vita quanto l'applicazione
-    if translator.load(f"qtbase_{_current}", QLibraryInfo.path(QLibraryInfo.TranslationsPath)):
+    if translator.load(f"qtbase_{_current}", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
         app.installTranslator(translator)
 
 

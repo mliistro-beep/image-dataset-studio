@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
         header.addWidget(self.btn_unload)
         root.addLayout(header)
 
-        splitter = QSplitter(Qt.Vertical)
+        splitter = QSplitter(Qt.Orientation.Vertical)
         self.tabs = QTabWidget()
         self.tab_tag = BatchTagTab()
         self.tab_caption = BatchCaptionTab()
@@ -140,8 +140,9 @@ class MainWindow(QMainWindow):
     def _on_language_changed(self):
         save_settings({"language": self.combo_lang.currentData()})
         answer = QMessageBox.question(self, tr("main.restart_title"), tr("main.restart_body"),
-                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if answer == QMessageBox.Yes and self.close():
+                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                      QMessageBox.StandardButton.Yes)
+        if answer == QMessageBox.StandardButton.Yes and self.close():
             QProcess.startDetached(sys.executable, sys.argv)
             QApplication.quit()
 
@@ -151,8 +152,9 @@ class MainWindow(QMainWindow):
             return
         if self._busy():
             answer = QMessageBox.question(self, tr("common.busy_title"), tr("main.quit_busy"),
-                                          QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if answer != QMessageBox.Yes:
+                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                          QMessageBox.StandardButton.No)
+            if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
             workers = [w for w in (self.tab_tag.worker, self.tab_caption.worker, self.tab_single.worker)
@@ -181,24 +183,25 @@ class EmojiSafeStyle(QProxyStyle):
 
     def sizeFromContents(self, type_, option, size, widget=None):
         result = super().sizeFromContents(type_, option, size, widget)
-        if type_ == QStyle.CT_GroupBox:
+        if type_ == QStyle.ContentsType.CT_GroupBox:
             result.setWidth(min(result.width(), _GROUPBOX_TITLE_MIN_WIDTH))
         return result
 
     def subControlRect(self, control, option, sub_control, widget=None):
         rect = super().subControlRect(control, option, sub_control, widget)
-        if control == QStyle.CC_GroupBox and sub_control == QStyle.SC_GroupBoxLabel and option.text:
-            frame = super().subControlRect(control, option, QStyle.SC_GroupBoxFrame, widget)
+        if (control == QStyle.ComplexControl.CC_GroupBox and sub_control == QStyle.SubControl.SC_GroupBoxLabel
+                and option.text):
+            frame = super().subControlRect(control, option, QStyle.SubControl.SC_GroupBoxFrame, widget)
             needed = option.fontMetrics.horizontalAdvance(option.text) + _GROUPBOX_TITLE_PADDING
             rect.setWidth(min(max(rect.width(), needed), frame.right() - rect.left()))
         return rect
 
     def drawComplexControl(self, control, option, painter, widget=None):
-        if control == QStyle.CC_GroupBox and option.text:
-            frame = self.subControlRect(control, option, QStyle.SC_GroupBoxFrame, widget)
-            label = self.subControlRect(control, option, QStyle.SC_GroupBoxLabel, widget)
+        if control == QStyle.ComplexControl.CC_GroupBox and option.text:
+            frame = self.subControlRect(control, option, QStyle.SubControl.SC_GroupBoxFrame, widget)
+            label = self.subControlRect(control, option, QStyle.SubControl.SC_GroupBoxLabel, widget)
             available = frame.right() - label.left() - _GROUPBOX_TITLE_PADDING
-            elided = option.fontMetrics.elidedText(option.text, Qt.ElideRight, available)
+            elided = option.fontMetrics.elidedText(option.text, Qt.TextElideMode.ElideRight, available)
             if elided != option.text:
                 option = QStyleOptionGroupBox(option)
                 option.text = elided
@@ -208,17 +211,17 @@ class EmojiSafeStyle(QProxyStyle):
 def apply_dark_palette(app):
     app.setStyle(EmojiSafeStyle())
     dark_palette = QPalette()
-    dark_palette.setColor(QPalette.Window, QColor(45, 45, 45))
-    dark_palette.setColor(QPalette.WindowText, QColor(220, 220, 220))
-    dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
-    dark_palette.setColor(QPalette.AlternateBase, QColor(45, 45, 45))
-    dark_palette.setColor(QPalette.ToolTipBase, QColor(220, 220, 220))
-    dark_palette.setColor(QPalette.ToolTipText, QColor(220, 220, 220))
-    dark_palette.setColor(QPalette.Text, QColor(220, 220, 220))
-    dark_palette.setColor(QPalette.Button, QColor(45, 45, 45))
-    dark_palette.setColor(QPalette.ButtonText, QColor(220, 220, 220))
-    dark_palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-    dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
-    dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-    dark_palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
+    dark_palette.setColor(QPalette.ColorRole.Window, QColor(45, 45, 45))
+    dark_palette.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))
+    dark_palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
+    dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(45, 45, 45))
+    dark_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(220, 220, 220))
+    dark_palette.setColor(QPalette.ColorRole.ToolTipText, QColor(220, 220, 220))
+    dark_palette.setColor(QPalette.ColorRole.Text, QColor(220, 220, 220))
+    dark_palette.setColor(QPalette.ColorRole.Button, QColor(45, 45, 45))
+    dark_palette.setColor(QPalette.ColorRole.ButtonText, QColor(220, 220, 220))
+    dark_palette.setColor(QPalette.ColorRole.BrightText, QColor(255, 0, 0))
+    dark_palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
     app.setPalette(dark_palette)

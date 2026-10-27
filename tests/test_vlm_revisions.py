@@ -3,6 +3,7 @@
 """Ogni modello VLM si scarica e si carica a una revisione fissa, non dall'ultimo commit di "main"."""
 import sys
 import types
+from typing import Any
 
 import pytest
 
@@ -32,7 +33,7 @@ def fake_hf(monkeypatch):
     _FakePretrained.calls = []
     names = ["AutoProcessor", "AutoModelForCausalLM", "Florence2ForConditionalGeneration",
              "LlavaForConditionalGeneration"]
-    fake_transformers = types.ModuleType("transformers")
+    fake_transformers: Any = types.ModuleType("transformers")
     for name in names:
         setattr(fake_transformers, name, type(name, (_FakePretrained,), {}))
     fake_transformers.BitsAndBytesConfig = lambda **kwargs: None
