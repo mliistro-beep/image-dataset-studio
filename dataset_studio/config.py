@@ -104,7 +104,7 @@ VLM_MODELS: Dict[str, VLMModelInfo] = {
         "label": "moondream2 (1.8B)",
         "backend": "moondream2",
         "repo": "vikhyatk/moondream2",
-        "revision": "2025-06-21",
+        "revision": "9a7d4024050840e001defacec2b00727e89149e6",  # tag 2025-06-21
     },
     "joycaption": {
         "label": "JoyCaption Beta One (Llama 3.1 8B, 4-bit)",
