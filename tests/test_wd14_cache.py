@@ -3,6 +3,7 @@
 """Verifica dei modelli WD14 già in cache (file troncati prima del controllo su Content-Length)."""
 import hashlib
 import io
+from typing import Any, Dict, List
 
 import pytest
 
@@ -30,7 +31,7 @@ class FakeResponse(io.BytesIO):
 @pytest.fixture
 def hub(tmp_path, monkeypatch):
     """HuggingFace finto: HEAD con x-linked-etag come quello vero, GET con il contenuto."""
-    state = {
+    state: Dict[str, Any] = {
         "files": {"model.onnx": ONNX_DATA, "selected_tags.csv": CSV_DATA},
         # Come HF: sha256 per i file LFS, sha1 del blob git per i file normali
         "etags": {"model.onnx": f'"{sha256(ONNX_DATA)}"', "selected_tags.csv": f'"{git_sha1(CSV_DATA)}"'},
@@ -139,7 +140,7 @@ def test_marker_is_ignored_when_file_size_changes(hub):
 def test_offline_uses_cached_files_with_a_warning(hub):
     onnx_path, _ = write_cache(onnx=ONNX_DATA[:1000])
     hub["offline"] = True
-    log = []
+    log: List[str] = []
 
     assert ensure(log) is not None
 

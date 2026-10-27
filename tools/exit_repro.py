@@ -52,7 +52,7 @@ def run_child(mode: str) -> int:
 
     # Nessun dialogo modale: senza display bloccherebbe la prova
     for name in ("warning", "information", "critical"):
-        setattr(QMessageBox, name, staticmethod(lambda *a, **k: QMessageBox.Ok))
+        setattr(QMessageBox, name, staticmethod(lambda *a, **k: QMessageBox.StandardButton.Ok))
 
     from dataset_studio.ui import main_window
     original_show = main_window.MainWindow.show
@@ -72,7 +72,7 @@ def run_child(mode: str) -> int:
             tab.worker.finished.connect(lambda: QTimer.singleShot(500, self.close))
         QTimer.singleShot(300, drive)
 
-    main_window.MainWindow.show = show
+    main_window.MainWindow.show = show   # type: ignore[method-assign]
     import run
     return run.main()
 

@@ -3,7 +3,9 @@
 """Scheda Batch Caption: caption in linguaggio naturale con VLM, salvate in dataset_captions."""
 import os
 import re
+from typing import cast
 
+from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QComboBox, QCheckBox,
     QRadioButton, QLineEdit, QSpinBox, QPlainTextEdit, QMessageBox, QDialog, QDialogButtonBox,
@@ -36,7 +38,7 @@ class VLMSettingsBox(QGroupBox):
             self.combo_profile.addItem(tr(prof["label"]), key)
             if key == "gpu" and gpu_reason:
                 idx = self.combo_profile.count() - 1
-                item = self.combo_profile.model().item(idx)
+                item = cast(QStandardItemModel, self.combo_profile.model()).item(idx)
                 item.setEnabled(False)
                 item.setToolTip(gpu_reason)
                 self.combo_profile.setItemText(idx, tr(prof["label"]) + tr("vlmbox.unavailable"))
@@ -152,7 +154,7 @@ class VLMSettingsBox(QGroupBox):
     def _restore(self):
         s = load_settings()
         idx = self.combo_profile.findData(s.get("vlm_profile", "universal"))
-        if idx >= 0 and self.combo_profile.model().item(idx).isEnabled():
+        if idx >= 0 and cast(QStandardItemModel, self.combo_profile.model()).item(idx).isEnabled():
             self.combo_profile.setCurrentIndex(idx)
         if s.get("vlm_instruction"):
             self.txt_instruction.setPlainText(s["vlm_instruction"])
@@ -194,8 +196,8 @@ class FindReplaceDialog(QDialog):
         form.addRow(self.lbl_preview)
         for w in (self.entry_find, self.chk_regex, self.chk_case):
             (w.textChanged if isinstance(w, QLineEdit) else w.toggled).connect(self._update_preview)
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText(tr("find.apply"))
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("find.apply"))
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         form.addRow(buttons)
@@ -305,7 +307,7 @@ class BatchCaptionTab(BatchTabBase):
             return
         self._auto_save_current_file()
         dlg = FindReplaceDialog(self.target_dir(), self)
-        if dlg.exec() == QDialog.Accepted:
+        if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
                 changed = dlg.apply()
             except re.error as e:

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Download dei file WD14 con una risposta HTTP finta."""
 import io
+from typing import List
 
 import pytest
 
@@ -34,7 +35,7 @@ def download(dest, should_stop=lambda: False):
 
 
 def test_download_writes_file_and_uses_timeout(tmp_path, monkeypatch):
-    calls = []
+    calls: List[dict] = []
     monkeypatch.setattr(wd14.urllib.request, "urlopen", fake_urlopen(FakeResponse(b"x" * 1000), calls))
 
     download(tmp_path / "model.onnx")

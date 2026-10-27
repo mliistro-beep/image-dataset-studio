@@ -28,6 +28,10 @@ Interfaccia in 8 lingue (it, en, es, de, fr, pt_BR, zh_CN, ja), licenza **AGPL-3
 
 # Prova dell'interfaccia senza display
 QT_QPA_PLATFORM=offscreen .venv/bin/python ...
+
+# Controllo dei tipi (deve restare pulito) e lint
+.venv/bin/mypy --ignore-missing-imports --no-incremental --check-untyped-defs run.py dataset_studio tools tests
+.venv/bin/ruff check --isolated --no-cache --select F,E9,B,PLE run.py dataset_studio tests tools
 ```
 
 - `~/image-dataset-studio` è **l'installazione dell'utente** (clonata da `install.sh`, su `main`): non modificarla, usala solo in lettura o per eseguire. Il codice si sviluppa qui in `~/Sviluppo/image-dataset-studio`.
@@ -59,6 +63,9 @@ tools/exit_repro.py         prova manuale del crash alla chiusura, con l'install
 - **Un solo modello in memoria**: WD14 e VLM non vanno mai caricati insieme. Passa sempre da `manager.get_wd14()` / `manager.get_vlm()`, mai istanziare i modelli direttamente. Un solo worker alla volta (`manager.busy()`).
 - **Struttura del dataset** (`dataset/layout.py`): `original_dataset/` è la fonte di verità, con nomi sequenziali `NNN.ext` (almeno 3 cifre) e `rename_map.csv`. Le cartelle target contengono copie con lo stesso nome e il `.txt`. Le immagini sorgente dell'utente non si modificano mai.
 - **Compatibilità**: le chiavi di `settings.json` e il percorso `~/.cache/wd14_tagger` restano quelli dello script originale (modelli già scaricati, impostazioni salvate). Non rinominarli.
+- **Revisioni fisse dei VLM**: ogni modello in `VLM_MODELS` ha una `revision` (hash del commit su HF) passata a
+  `snapshot_download` e a ogni `from_pretrained` (`tests/test_vlm_revisions.py`). Per aggiornare un modello, prova il
+  nuovo commit e cambia lì l'hash.
 - **Mai perdere il testo dell'utente**: editor batch e Mass Edit salvano o chiedono prima di scartare (`maybe_save`). Ogni nuovo flusso che ricarica dati dal disco deve rispettare questa regola.
 - **Lo Stop deve funzionare** anche durante i download: passa `should_stop` a ogni operazione lunga. `InterruptedError` significa "fermato dall'utente", non un errore da mostrare.
 
@@ -68,6 +75,8 @@ tools/exit_repro.py         prova manuale del crash alla chiusura, con l'install
 - Le operazioni lente (miniature, I/O su molti file) non vanno nel thread della GUI: vedi `ThumbnailLoader` in `ui/widgets.py`.
 - **Chiusura**: `run.py` distrugge esplicitamente la finestra con `shiboken6.delete(window)` prima di uscire. Senza, Python crasha alla chiusura (SIGSEGV/SIGBUS in `~QObject`). Non reintrodurre `sys.exit()` dentro `main()`. `tests/test_run_exit.py` controlla che la correzione resti; la prova vera, da rilanciare quando si tocca la chiusura, è `~/image-dataset-studio/venv/bin/python -I tools/exit_repro.py tags --runs 8` (crash intermittente: ripetere più volte).
 - Un QThread ancora attivo non va mai distrutto: vedi `MainWindow.closeEvent`.
+- Enum Qt sempre nella forma completa (`Qt.CheckState.Checked`, `QMessageBox.StandardButton.Yes`): la forma corta
+  funziona solo per compatibilità in PySide6 e mypy la segnala come errore.
 - Lo stile è `EmojiSafeStyle` (`ui/main_window.py`): Fusion con i titoli dei `QGroupBox` misurati correttamente con le emoji, che non impongono la larghezza minima e si accorciano con "…". Non tornare a `app.setStyle("Fusion")`. I pulsanti invece non si accorciano: con testi lunghi in una lingua, abbrevia la traduzione.
 
 ## Testi e lingue

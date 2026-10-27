@@ -8,6 +8,7 @@ che la correzione resti al suo posto.
 """
 import ast
 import os
+from typing import Any, List
 
 RUN_PY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "run.py")
 
@@ -20,7 +21,7 @@ def main_function() -> ast.FunctionDef:
 
 def calls(node: ast.AST) -> list:
     """Chiamate come 'modulo.funzione', nell'ordine del sorgente."""
-    found = [n for n in ast.walk(node)
+    found: List[Any] = [n for n in ast.walk(node)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name)]
     found.sort(key=lambda n: (n.lineno, n.col_offset))
     return [f"{n.func.value.id}.{n.func.attr}" for n in found]

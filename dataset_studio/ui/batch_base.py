@@ -80,12 +80,12 @@ class BatchTabBase(QWidget):
         scroll = QScrollArea()
         scroll.setWidget(sidebar)
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setFixedWidth(350)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         main_layout.addWidget(scroll)
 
-        central_splitter = QSplitter(Qt.Vertical)
+        central_splitter = QSplitter(Qt.Orientation.Vertical)
         top_widget = QWidget()
         top_layout = QVBoxLayout(top_widget)
         top_layout.setContentsMargins(0, 0, 0, 0)
@@ -107,7 +107,7 @@ class BatchTabBase(QWidget):
         self.lbl_eta.setVisible(False)
         top_layout.addWidget(self.lbl_eta)
 
-        preview_splitter = QSplitter(Qt.Horizontal)
+        preview_splitter = QSplitter(Qt.Orientation.Horizontal)
 
         box_gallery = QGroupBox(tr("batch.gallery"))
         box_gallery_layout = QVBoxLayout(box_gallery)
@@ -124,7 +124,7 @@ class BatchTabBase(QWidget):
         nav_btns_layout.addWidget(btn_next)
         box_gallery_layout.addLayout(nav_btns_layout)
         self.lbl_gallery_count = QLabel(tr("common.no_image"))
-        self.lbl_gallery_count.setAlignment(Qt.AlignCenter)
+        self.lbl_gallery_count.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_gallery_count.setStyleSheet("color: #888888; font-size: 11px;")
         box_gallery_layout.addWidget(self.lbl_gallery_count)
         preview_splitter.addWidget(box_gallery)
