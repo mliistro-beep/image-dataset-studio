@@ -2,13 +2,22 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Backend VLM per il captioning in linguaggio naturale, con interfaccia comune."""
 import gc
-from typing import Any, Callable, Optional
+import threading
+from typing import Any, Callable, List, Optional
 
 from PIL import Image
 
 from ..config import VLM_MODELS, FLORENCE_TASKS, IS_MAC
 from ..i18n import tr
 from ..images import flatten_to_rgb
+
+# Sotto questa dimensione un contatore di byte non viene mostrato (solo file di configurazione)
+MIN_REPORTED_BYTES = 1048576
+# File dei repository che i backend non usano: i GGUF di moondream2 sono 3,7 GB per llama.cpp
+IGNORED_DOWNLOAD_PATTERNS = ["*.gguf"]
+
+# Download lasciati andare avanti dallo Stop (vedi download_snapshot)
+_background_downloads: List[threading.Thread] = []
 
 try:
     import torch
@@ -62,27 +71,39 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
                       should_stop: Callable[[], bool] = lambda: False):
     """Scarica (o verifica in cache) il repository HF, inviando l'avanzamento all'interfaccia.
     InterruptedError se viene richiesto lo stop."""
-    import threading
     from huggingface_hub import snapshot_download
     from tqdm.auto import tqdm as base_tqdm
+
+    # huggingface_hub 2.x con hf_xet usa insieme due contatori di byte (rete e scrittura su disco) e uno dei
+    # file: si mostra solo il più avanti dei contatori di byte, e il numero di file solo se non ce ne sono.
+    reported = {"bytes_seen": False, "bytes_done": 0}
 
     class _ProgressTqdm(base_tqdm):
         def __init__(self, *args, **kwargs):
             kwargs["disable"] = False
             super().__init__(*args, **kwargs)
+            # Il contatore dei byte nasce prima di quello dei file, anche se i primi byte arrivano dopo
+            if self.unit == "B":
+                reported["bytes_seen"] = True
 
         def update(self, n=1):
             super().update(n)
             # Dopo uno stop il download continua in background: l'interfaccia non va più aggiornata
-            if self.total and not should_stop():
-                pct = self.n / self.total * 100
-                unit_mb = self.unit == "B"
-                if unit_mb:
-                    msg = tr("vlm.download_mb", repo=repo_id, done=f"{self.n / 1048576:.0f}",
-                             total=f"{self.total / 1048576:.0f}", percent=f"{pct:.1f}")
-                else:
-                    msg = tr("vlm.download_files", repo=repo_id, done=self.n, total=self.total)
-                progress_cb(msg, pct)
+            if not self.total or should_stop():
+                return
+            pct = self.n / self.total * 100
+            if self.unit == "B":
+                # Sotto 1 MB sono solo i file di configurazione iniziali: "0/0 MB (100%)" confonde
+                if self.total < MIN_REPORTED_BYTES or self.n < reported["bytes_done"]:
+                    return
+                reported["bytes_done"] = self.n
+                msg = tr("vlm.download_mb", repo=repo_id, done=f"{self.n / 1048576:.0f}",
+                         total=f"{self.total / 1048576:.0f}", percent=f"{pct:.1f}")
+            elif reported["bytes_seen"]:
+                return
+            else:
+                msg = tr("vlm.download_files", repo=repo_id, done=self.n, total=self.total)
+            progress_cb(msg, pct)
 
     # snapshot_download non è interrompibile: gira in un thread separato e qui si controlla lo stop.
     # Se si ferma, il download prosegue in background fino alla chiusura dell'app; i file parziali
@@ -92,9 +113,10 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
     def _run():
         try:
             try:
-                snapshot_download(repo_id, revision=revision, tqdm_class=_ProgressTqdm)
+                snapshot_download(repo_id, revision=revision, tqdm_class=_ProgressTqdm,
+                                  ignore_patterns=IGNORED_DOWNLOAD_PATTERNS)
             except TypeError:
-                snapshot_download(repo_id, revision=revision)
+                snapshot_download(repo_id, revision=revision, ignore_patterns=IGNORED_DOWNLOAD_PATTERNS)
         except BaseException as e:  # rilanciata nel thread chiamante
             result["error"] = e
 
@@ -104,10 +126,20 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
     while thread.is_alive():
         thread.join(0.3)
         if should_stop():
+            _background_downloads.append(thread)
             raise InterruptedError(tr("wd14.download_cancelled"))
     if "error" in result:
         raise result["error"]
     log_cb(tr("vlm.download_done", repo=repo_id))
+
+
+def downloads_in_background() -> bool:
+    """True se un download fermato dallo Stop sta ancora scaricando.
+
+    I thread di snapshot_download non sono daemon: all'uscita Python li aspetterebbe fino alla fine
+    del download, con la finestra già chiusa (vedi run.py)."""
+    _background_downloads[:] = [t for t in _background_downloads if t.is_alive()]
+    return bool(_background_downloads)
 
 
 class VLMBackend:
