@@ -40,16 +40,20 @@ AVAILABLE_MODELS = {
 
 # Modelli VLM per il captioning in linguaggio naturale.
 # backend: chiave della classe in engines/vlm.py
+# revision: commit (o tag) fisso su HuggingFace, così un aggiornamento del repo non cambia il modello
+# né il codice scaricato senza che lo si sia provato. Per aggiornarlo, prova il nuovo commit e cambia qui.
 VLM_MODELS = {
     "florence2_large": {
         "label": "Florence-2-large (0.77B)",
         "backend": "florence2",
         "repo": "florence-community/Florence-2-large",
+        "revision": "4271c66b88cdbc05735372ec13b2360108de5317",
     },
     "florence2_base": {
         "label": "Florence-2-base (0.23B)",
         "backend": "florence2",
         "repo": "florence-community/Florence-2-base",
+        "revision": "00921df66db728a9ceb750f5eca43e5c203a2051",
     },
     "moondream2": {
         "label": "moondream2 (1.8B)",
@@ -61,6 +65,7 @@ VLM_MODELS = {
         "label": "JoyCaption Beta One (Llama 3.1 8B, 4-bit)",
         "backend": "joycaption",
         "repo": "fancyfeast/llama-joycaption-beta-one-hf-llava",
+        "revision": "ebf414ea497a020da0f82df3913e5b6cb8e9663a",
     },
 }
 
