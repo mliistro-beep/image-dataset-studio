@@ -75,6 +75,7 @@ tools/exit_repro.py         prova manuale del crash alla chiusura, con l'install
 - Le operazioni lente (miniature, I/O su molti file) non vanno nel thread della GUI: vedi `ThumbnailLoader` in `ui/widgets.py`.
 - **Chiusura**: `run.py` distrugge esplicitamente la finestra con `shiboken6.delete(window)` prima di uscire. Senza, Python crasha alla chiusura (SIGSEGV/SIGBUS in `~QObject`). Non reintrodurre `sys.exit()` dentro `main()`. `tests/test_run_exit.py` controlla che la correzione resti; la prova vera, da rilanciare quando si tocca la chiusura, è `~/image-dataset-studio/venv/bin/python -I tools/exit_repro.py tags --runs 8` (crash intermittente: ripetere più volte).
 - Un QThread ancora attivo non va mai distrutto: vedi `MainWindow.closeEvent`.
+- Dopo uno Stop durante un download VLM, i thread di huggingface_hub continuano a scaricare e Python li aspetterebbe all'uscita (processo vivo a finestra chiusa): `run.py` esce con `os._exit` se `vlm.downloads_in_background()`. `tests/test_run_exit.py` lo controlla.
 - Enum Qt sempre nella forma completa (`Qt.CheckState.Checked`, `QMessageBox.StandardButton.Yes`): la forma corta
   funziona solo per compatibilità in PySide6 e mypy la segnala come errore.
 - Lo stile è `EmojiSafeStyle` (`ui/main_window.py`): Fusion con i titoli dei `QGroupBox` misurati correttamente con le emoji, che non impongono la larghezza minima e si accorciano con "…". Non tornare a `app.setStyle("Fusion")`. I pulsanti invece non si accorciano: con testi lunghi in una lingua, abbrevia la traduzione.

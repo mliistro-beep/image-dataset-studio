@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Backend VLM per il captioning in linguaggio naturale, con interfaccia comune."""
 import gc
-from typing import Any, Callable, Optional
+import threading
+from typing import Any, Callable, List, Optional
 
 from PIL import Image
 
@@ -12,6 +13,11 @@ from ..images import flatten_to_rgb
 
 # Sotto questa dimensione un contatore di byte non viene mostrato (solo file di configurazione)
 MIN_REPORTED_BYTES = 1048576
+# File dei repository che i backend non usano: i GGUF di moondream2 sono 3,7 GB per llama.cpp
+IGNORED_DOWNLOAD_PATTERNS = ["*.gguf"]
+
+# Download lasciati andare avanti dallo Stop (vedi download_snapshot)
+_background_downloads: List[threading.Thread] = []
 
 try:
     import torch
@@ -65,7 +71,6 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
                       should_stop: Callable[[], bool] = lambda: False):
     """Scarica (o verifica in cache) il repository HF, inviando l'avanzamento all'interfaccia.
     InterruptedError se viene richiesto lo stop."""
-    import threading
     from huggingface_hub import snapshot_download
     from tqdm.auto import tqdm as base_tqdm
 
@@ -108,9 +113,10 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
     def _run():
         try:
             try:
-                snapshot_download(repo_id, revision=revision, tqdm_class=_ProgressTqdm)
+                snapshot_download(repo_id, revision=revision, tqdm_class=_ProgressTqdm,
+                                  ignore_patterns=IGNORED_DOWNLOAD_PATTERNS)
             except TypeError:
-                snapshot_download(repo_id, revision=revision)
+                snapshot_download(repo_id, revision=revision, ignore_patterns=IGNORED_DOWNLOAD_PATTERNS)
         except BaseException as e:  # rilanciata nel thread chiamante
             result["error"] = e
 
@@ -120,10 +126,20 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
     while thread.is_alive():
         thread.join(0.3)
         if should_stop():
+            _background_downloads.append(thread)
             raise InterruptedError(tr("wd14.download_cancelled"))
     if "error" in result:
         raise result["error"]
     log_cb(tr("vlm.download_done", repo=repo_id))
+
+
+def downloads_in_background() -> bool:
+    """True se un download fermato dallo Stop sta ancora scaricando.
+
+    I thread di snapshot_download non sono daemon: all'uscita Python li aspetterebbe fino alla fine
+    del download, con la finestra già chiusa (vedi run.py)."""
+    _background_downloads[:] = [t for t in _background_downloads if t.is_alive()]
+    return bool(_background_downloads)
 
 
 class VLMBackend:

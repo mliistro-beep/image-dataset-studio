@@ -34,6 +34,15 @@ def test_main_window_is_deleted_after_event_loop():
     assert names.index("app.exec") < names.index("shiboken6.delete")
 
 
+def test_main_exits_without_waiting_for_background_downloads():
+    # Dopo uno Stop i thread di huggingface_hub continuano a scaricare e Python li aspetterebbe all'uscita
+    names = calls(main_function())
+
+    assert "vlm.downloads_in_background" in names
+    assert "os._exit" in names
+    assert names.index("shiboken6.delete") < names.index("os._exit")
+
+
 def test_main_does_not_call_sys_exit():
     # sys.exit dentro main() salterebbe la distruzione esplicita della finestra
     assert "sys.exit" not in calls(main_function())

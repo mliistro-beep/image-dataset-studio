@@ -1,8 +1,11 @@
 # Image Dataset Studio — Copyright (C) 2026 Mauro Liistro
 # SPDX-License-Identifier: AGPL-3.0-only
-"""Avanzamento del download VLM con i contatori di huggingface_hub (byte di hf_xet e numero di file)."""
+"""Download dei VLM: avanzamento con i contatori di huggingface_hub (byte di hf_xet e numero di file),
+file esclusi, download lasciati in background dallo Stop."""
 import re
 import sys
+import threading
+import time
 import types
 from typing import Any
 
@@ -14,10 +17,18 @@ MB = 1048576
 
 
 def _fake_hub(monkeypatch, simulate):
-    """huggingface_hub finto: snapshot_download esegue `simulate(tqdm_class)` al posto della rete."""
+    """huggingface_hub finto: snapshot_download esegue `simulate(tqdm_class)` al posto della rete.
+    Ritorna la lista degli argomenti ricevuti."""
+    received = []
+
+    def snapshot_download(repo_id, revision=None, tqdm_class=None, **kwargs):
+        received.append(kwargs)
+        simulate(tqdm_class)
+
     fake: Any = types.ModuleType("huggingface_hub")
-    fake.snapshot_download = lambda repo_id, revision=None, tqdm_class=None: simulate(tqdm_class)
+    fake.snapshot_download = snapshot_download
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
+    return received
 
 
 def _hub_2_xet(tqdm_class):
@@ -106,3 +117,37 @@ def test_file_counter_is_used_when_hub_reports_no_bytes(monkeypatch):
 
     assert [pct for _, pct in calls] == [25.0, 50.0, 75.0, 100.0]
     assert all(" 4 " in msg or "/4 " in msg for msg, _ in calls)
+
+
+def test_gguf_weights_are_not_downloaded(monkeypatch):
+    # moondream2 contiene anche 3,7 GB di GGUF per llama.cpp, che transformers non usa
+    received = _fake_hub(monkeypatch, lambda tqdm_class: None)
+
+    vlm.download_snapshot("org/model", "abc123", lambda msg: None, lambda msg, pct: None)
+
+    assert "*.gguf" in received[0]["ignore_patterns"]
+
+
+def test_stopped_download_is_tracked_until_it_ends(monkeypatch):
+    release = threading.Event()
+    _fake_hub(monkeypatch, lambda tqdm_class: release.wait(5))
+
+    with pytest.raises(InterruptedError):
+        vlm.download_snapshot("org/model", "abc123", lambda msg: None, lambda msg, pct: None,
+                              should_stop=lambda: True)
+    in_background = vlm.downloads_in_background()
+    release.set()
+    deadline = time.monotonic() + 5
+    while vlm.downloads_in_background() and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+    assert in_background
+    assert not vlm.downloads_in_background()
+
+
+def test_finished_download_is_not_in_background(monkeypatch):
+    _fake_hub(monkeypatch, lambda tqdm_class: None)
+
+    vlm.download_snapshot("org/model", "abc123", lambda msg: None, lambda msg, pct: None)
+
+    assert not vlm.downloads_in_background()
