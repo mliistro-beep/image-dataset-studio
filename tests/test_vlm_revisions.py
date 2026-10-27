@@ -1,6 +1,7 @@
 # Image Dataset Studio — Copyright (C) 2026 Mauro Liistro
 # SPDX-License-Identifier: AGPL-3.0-only
 """Ogni modello VLM si scarica e si carica a una revisione fissa, non dall'ultimo commit di "main"."""
+import re
 import sys
 import types
 from typing import Any
@@ -50,6 +51,14 @@ def test_every_vlm_model_has_a_pinned_revision():
     missing = [key for key, info in config.VLM_MODELS.items() if not info.get("revision")]
 
     assert missing == []
+
+
+def test_every_vlm_revision_is_a_commit_hash():
+    # Un tag o un branch su HF si può spostare: solo l'hash del commit fissa davvero i file
+    not_hashes = {key: info.get("revision") for key, info in config.VLM_MODELS.items()
+                  if not re.fullmatch(r"[0-9a-f]{40}", info.get("revision") or "")}
+
+    assert not_hashes == {}
 
 
 @pytest.mark.parametrize("model_key", sorted(config.VLM_MODELS))

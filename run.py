@@ -1,6 +1,7 @@
 # Image Dataset Studio — Copyright (C) 2026 Mauro Liistro
 # SPDX-License-Identifier: AGPL-3.0-only
 """Avvio di Image Dataset Studio: python run.py"""
+import os
 import sys
 
 try:
@@ -21,6 +22,7 @@ def main() -> int:
     set_language(resolve_language(load_settings().get("language", "auto")))
     install_qt_translator(app)
 
+    from dataset_studio.engines import vlm
     from dataset_studio.ui.license_dialog import LicenseAcceptDialog, license_accepted
     from dataset_studio.ui.main_window import MainWindow, apply_dark_palette
 
@@ -35,6 +37,12 @@ def main() -> int:
     # PySide li distrugge in ordine casuale e Python va in crash (SIGSEGV/SIGBUS/abort in ~QObject).
     # "del window" non basta: segnali collegati al ModelManager globale e lambda la tengono in vita.
     shiboken6.delete(window)
+    if vlm.downloads_in_background():
+        # Un download fermato dallo Stop continua nei thread di huggingface_hub, che Python aspetterebbe
+        # fino alla fine (GB) con la finestra già chiusa. I file parziali restano in cache e si riprendono.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(exit_code)
     return exit_code
 
 
