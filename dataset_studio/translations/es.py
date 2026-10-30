@@ -388,6 +388,7 @@ STRINGS = {
     "vlm.download_files": "Descarga {repo}: {done}/{total} archivos",
     "vlm.download_start": "📥 Verificando/descargando {repo} desde la caché de HuggingFace (la primera vez puede tardar varios minutos)...",
     "vlm.download_done": "✅ Archivos de {repo} disponibles localmente.",
+    "vlm.partials_removed": "🧹 Descargas interrumpidas eliminadas de la caché: {count} ({size} MB).",
     "vlm.loading": "Cargando {model} en memoria...",
     "vlm.loading_vram": "Cargando {model} en VRAM (4-bit NF4)...",
     "manager.unloaded": "♻️ Modelo descargado de la memoria: {model}",

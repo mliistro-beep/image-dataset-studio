@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Backend VLM per il captioning in linguaggio naturale, con interfaccia comune."""
 import gc
+import os
 import threading
-from typing import Any, Callable, List, Optional
+import time
+from typing import Any, Callable, List, Optional, Tuple
 
 from PIL import Image
 
@@ -15,6 +17,10 @@ from ..images import flatten_to_rgb
 MIN_REPORTED_BYTES = 1048576
 # File dei repository che i backend non usano: i GGUF per llama.cpp (3,7 GB nei vecchi commit di moondream2)
 IGNORED_DOWNLOAD_PATTERNS = ["*.gguf"]
+
+# Un parziale non modificato da tanto non appartiene a un download attivo (vedi remove_orphan_partials)
+ORPHAN_PARTIAL_AGE = 600
+PARTIAL_SUFFIX = ".incomplete"
 
 # Download lasciati andare avanti dallo Stop (vedi download_snapshot)
 _background_downloads: List[threading.Thread] = []
@@ -66,13 +72,45 @@ def free_torch_memory():
         torch.cuda.empty_cache()
 
 
+def remove_orphan_partials(blobs_dir: str, max_age: float = ORPHAN_PARTIAL_AGE) -> Tuple[int, int]:
+    """Cancella i download parziali abbandonati; ritorna (numero di file, byte liberati).
+
+    huggingface_hub 2.x scarica in un file con un nome unico per tentativo e lo cancella solo se il download
+    fallisce con un'eccezione: dopo un os._exit (Stop + chiusura, vedi run.py) il parziale resta e non viene
+    più ripreso. Quelli modificati di recente possono appartenere a un download ancora in corso."""
+    try:
+        entries = list(os.scandir(blobs_dir))
+    except OSError:
+        return 0, 0
+    now = time.time()
+    count = freed = 0
+    for entry in entries:
+        if not entry.name.endswith(PARTIAL_SUFFIX):
+            continue
+        try:
+            stat = entry.stat(follow_symlinks=False)
+            if now - stat.st_mtime < max_age:
+                continue
+            os.remove(entry.path)
+        except OSError:
+            continue  # solo spazio non liberato: si riprova al prossimo download
+        count += 1
+        freed += stat.st_size
+    return count, freed
+
+
 def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[str], None],
                       progress_cb: Callable[[str, float], None],
                       should_stop: Callable[[], bool] = lambda: False):
     """Scarica (o verifica in cache) il repository HF, inviando l'avanzamento all'interfaccia.
     InterruptedError se viene richiesto lo stop."""
-    from huggingface_hub import snapshot_download
+    from huggingface_hub import constants, snapshot_download
     from tqdm.auto import tqdm as base_tqdm
+
+    blobs_dir = os.path.join(constants.HF_HUB_CACHE, "models--" + repo_id.replace("/", "--"), "blobs")
+    count, freed = remove_orphan_partials(blobs_dir)
+    if count:
+        log_cb(tr("vlm.partials_removed", count=count, size=f"{freed / 1048576:.0f}"))
 
     # huggingface_hub 2.x con hf_xet usa insieme due contatori di byte (rete e scrittura su disco) e uno dei
     # file: si mostra solo il più avanti dei contatori di byte, e il numero di file solo se non ce ne sono.
@@ -106,8 +144,8 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
             progress_cb(msg, pct)
 
     # snapshot_download non è interrompibile: gira in un thread separato e qui si controlla lo stop.
-    # Se si ferma, il download prosegue in background fino alla chiusura dell'app; i file parziali
-    # restano nella cache HF e vengono ripresi al tentativo successivo.
+    # Se si ferma, il download prosegue in background fino alla chiusura dell'app. Un tentativo successivo
+    # ricomincia da capo: huggingface_hub 2.x non riprende i parziali (vedi remove_orphan_partials).
     result = {}
 
     def _run():

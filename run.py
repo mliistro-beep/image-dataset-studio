@@ -39,7 +39,7 @@ def main() -> int:
     shiboken6.delete(window)
     if vlm.downloads_in_background():
         # Un download fermato dallo Stop continua nei thread di huggingface_hub, che Python aspetterebbe
-        # fino alla fine (GB) con la finestra già chiusa. I file parziali restano in cache e si riprendono.
+        # fino alla fine (GB) con la finestra già chiusa. Il parziale rimasto si cancella al prossimo download.
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(exit_code)

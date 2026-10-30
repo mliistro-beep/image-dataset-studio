@@ -388,6 +388,7 @@ STRINGS = {
     "vlm.download_files": "ダウンロード {repo}：{done}/{total} ファイル",
     "vlm.download_start": "📥 HuggingFace キャッシュで {repo} を確認/ダウンロード中（初回は数分かかることがあります）...",
     "vlm.download_done": "✅ {repo} のファイルをローカルで利用できます。",
+    "vlm.partials_removed": "🧹 キャッシュから削除した中断済みダウンロード：{count} 件（{size} MB）。",
     "vlm.loading": "{model} をメモリに読み込み中...",
     "vlm.loading_vram": "{model} を VRAM に読み込み中（4-bit NF4）...",
     "manager.unloaded": "♻️ モデルをメモリからアンロードしました：{model}",
