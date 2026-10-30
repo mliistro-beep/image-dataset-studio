@@ -454,6 +454,8 @@ _ENTRIES = [
     ("vlm.download_start", "📥 Verifica/download di {repo} dalla cache HuggingFace (la prima volta può richiedere diversi minuti)...",
      "📥 Checking/downloading {repo} from the HuggingFace cache (the first time may take several minutes)..."),
     ("vlm.download_done", "✅ File di {repo} disponibili in locale.", "✅ {repo} files available locally."),
+    ("vlm.partials_removed", "🧹 Download interrotti cancellati dalla cache: {count} ({size} MB).",
+     "🧹 Interrupted downloads deleted from the cache: {count} ({size} MB)."),
     ("vlm.loading", "Caricamento {model} in memoria...", "Loading {model} into memory..."),
     ("vlm.loading_vram", "Caricamento {model} in VRAM (4-bit NF4)...", "Loading {model} into VRAM (4-bit NF4)..."),
     ("manager.unloaded", "♻️ Modello scaricato dalla memoria: {model}", "♻️ Model unloaded from memory: {model}"),

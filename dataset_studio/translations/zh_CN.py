@@ -388,6 +388,7 @@ STRINGS = {
     "vlm.download_files": "下载 {repo}：{done}/{total} 个文件",
     "vlm.download_start": "📥 正在从 HuggingFace 缓存检查/下载 {repo}（首次可能需要几分钟）...",
     "vlm.download_done": "✅ {repo} 的文件已在本地就绪。",
+    "vlm.partials_removed": "🧹 已从缓存中删除中断的下载：{count} 个（{size} MB）。",
     "vlm.loading": "正在将 {model} 加载到内存...",
     "vlm.loading_vram": "正在将 {model} 加载到显存（4-bit NF4）...",
     "manager.unloaded": "♻️ 已从内存卸载模型：{model}",

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Download dei VLM: avanzamento con i contatori di huggingface_hub (byte di hf_xet e numero di file),
 file esclusi, download lasciati in background dallo Stop."""
+import os
 import re
 import sys
 import threading
@@ -16,7 +17,7 @@ from dataset_studio.engines import vlm
 MB = 1048576
 
 
-def _fake_hub(monkeypatch, simulate):
+def _fake_hub(monkeypatch, simulate, hub_cache="/nonexistent/hf-hub-cache"):
     """huggingface_hub finto: snapshot_download esegue `simulate(tqdm_class)` al posto della rete.
     Ritorna la lista degli argomenti ricevuti."""
     received = []
@@ -27,6 +28,7 @@ def _fake_hub(monkeypatch, simulate):
 
     fake: Any = types.ModuleType("huggingface_hub")
     fake.snapshot_download = snapshot_download
+    fake.constants = types.SimpleNamespace(HF_HUB_CACHE=hub_cache)
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
     return received
 
@@ -151,3 +153,47 @@ def test_finished_download_is_not_in_background(monkeypatch):
     vlm.download_snapshot("org/model", "abc123", lambda msg: None, lambda msg, pct: None)
 
     assert not vlm.downloads_in_background()
+
+
+def _partial(folder, name, size, age_seconds):
+    """File nella cartella blobs con la data di modifica di `age_seconds` fa."""
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / name
+    path.write_bytes(b"x" * size)
+    mtime = time.time() - age_seconds
+    os.utime(path, (mtime, mtime))
+    return path
+
+
+def test_old_partial_downloads_are_removed(tmp_path):
+    # huggingface_hub 2.x scarica in "<hash>.<uuid>.incomplete", un nome diverso a ogni tentativo:
+    # un parziale lasciato da un processo terminato (Stop + chiusura, os._exit) non viene più ripreso
+    orphan = _partial(tmp_path, "aaa.1234abcd.incomplete", 300, age_seconds=3600)
+    active = _partial(tmp_path, "aaa.5678ef01.incomplete", 200, age_seconds=5)
+    weights = _partial(tmp_path, "bbb", 100, age_seconds=3600)
+
+    removed = vlm.remove_orphan_partials(str(tmp_path))
+
+    assert removed == (1, 300)
+    assert not orphan.exists()
+    assert active.exists()
+    assert weights.exists()
+
+
+def test_orphan_cleanup_ignores_a_missing_cache(tmp_path):
+    assert vlm.remove_orphan_partials(str(tmp_path / "missing")) == (0, 0)
+
+
+def test_download_removes_the_repo_orphans_before_fetching(monkeypatch, tmp_path):
+    blobs = tmp_path / "models--org--model" / "blobs"
+    orphan = _partial(blobs, "aaa.1234abcd.incomplete", 3 * MB, age_seconds=3600)
+    other_repo = _partial(tmp_path / "models--org--other" / "blobs", "ccc.9999aaaa.incomplete", 10, 3600)
+    seen_at_fetch = []
+    _fake_hub(monkeypatch, lambda tqdm_class: seen_at_fetch.append(orphan.exists()), hub_cache=str(tmp_path))
+    logs: list[str] = []
+
+    vlm.download_snapshot("org/model", "abc123", logs.append, lambda msg, pct: None)
+
+    assert seen_at_fetch == [False]
+    assert other_repo.exists()
+    assert any("3 MB" in msg for msg in logs), logs
