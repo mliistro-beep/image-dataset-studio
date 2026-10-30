@@ -114,7 +114,7 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
 
     # huggingface_hub 2.x con hf_xet usa insieme due contatori di byte (rete e scrittura su disco) e uno dei
     # file: si mostra solo il più avanti dei contatori di byte, e il numero di file solo se non ce ne sono.
-    reported = {"bytes_seen": False, "bytes_done": 0}
+    reported = {"bytes_seen": False, "bytes_done": 0, "announced": False}
 
     class _ProgressTqdm(base_tqdm):
         def __init__(self, *args, **kwargs):
@@ -135,6 +135,10 @@ def download_snapshot(repo_id: str, revision: Optional[str], log_cb: Callable[[s
                 if self.total < MIN_REPORTED_BYTES or self.n < reported["bytes_done"]:
                     return
                 reported["bytes_done"] = self.n
+                # Solo ora si sa che manca qualcosa: con il modello già in cache non arrivano byte
+                if not reported["announced"]:
+                    reported["announced"] = True
+                    log_cb(tr("vlm.downloading", repo=repo_id))
                 msg = tr("vlm.download_mb", repo=repo_id, done=f"{self.n / 1048576:.0f}",
                          total=f"{self.total / 1048576:.0f}", percent=f"{pct:.1f}")
             elif reported["bytes_seen"]:

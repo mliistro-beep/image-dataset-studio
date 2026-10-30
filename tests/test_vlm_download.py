@@ -197,3 +197,32 @@ def test_download_removes_the_repo_orphans_before_fetching(monkeypatch, tmp_path
     assert seen_at_fetch == [False]
     assert other_repo.exists()
     assert any("3 MB" in msg for msg in logs), logs
+
+
+def _logs(monkeypatch, simulate):
+    _fake_hub(monkeypatch, simulate)
+    logs: list[str] = []
+    vlm.download_snapshot("org/model", "abc123", logs.append, lambda msg, pct: None)
+    return logs
+
+
+def _hub_2_cached(tqdm_class):
+    """Modello già in cache: l'hub crea i contatori ma non arriva nessun byte dei pesi."""
+    transfer = tqdm_class(desc="Downloading bytes", total=0, unit="B", file=None)
+    files = tqdm_class(desc="Fetching 13 files", total=13, file=None)
+    files.update(13)
+    for bar in (transfer, files):
+        bar.close()
+
+
+def test_cached_model_is_not_announced_as_a_download(monkeypatch):
+    logs = _logs(monkeypatch, _hub_2_cached)
+
+    assert vlm.tr("vlm.downloading", repo="org/model") not in logs
+    assert logs[-1] == vlm.tr("vlm.download_done", repo="org/model")
+
+
+def test_real_download_is_announced_once(monkeypatch):
+    logs = _logs(monkeypatch, _hub_2_xet)
+
+    assert logs.count(vlm.tr("vlm.downloading", repo="org/model")) == 1
