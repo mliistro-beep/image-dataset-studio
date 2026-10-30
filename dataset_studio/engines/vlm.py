@@ -13,7 +13,7 @@ from ..images import flatten_to_rgb
 
 # Sotto questa dimensione un contatore di byte non viene mostrato (solo file di configurazione)
 MIN_REPORTED_BYTES = 1048576
-# File dei repository che i backend non usano: i GGUF di moondream2 sono 3,7 GB per llama.cpp
+# File dei repository che i backend non usano: i GGUF per llama.cpp (3,7 GB nei vecchi commit di moondream2)
 IGNORED_DOWNLOAD_PATTERNS = ["*.gguf"]
 
 # Download lasciati andare avanti dallo Stop (vedi download_snapshot)
