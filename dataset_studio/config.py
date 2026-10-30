@@ -104,7 +104,8 @@ VLM_MODELS: Dict[str, VLMModelInfo] = {
         "label": "moondream2 (1.8B)",
         "backend": "moondream2",
         "repo": "vikhyatk/moondream2",
-        "revision": "9a7d4024050840e001defacec2b00727e89149e6",  # tag 2025-06-21
+        # Stessi pesi del tag 2025-06-21; il codice remoto di quel tag non si carica con transformers 5
+        "revision": "5d6c926f44e26b07957b0dd315bbedcb4c17a5fe",
     },
     "joycaption": {
         "label": "JoyCaption Beta One (Llama 3.1 8B, 4-bit)",
