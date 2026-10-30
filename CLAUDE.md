@@ -75,7 +75,7 @@ tools/exit_repro.py         prova manuale del crash alla chiusura, con l'install
 - Le operazioni lente (miniature, I/O su molti file) non vanno nel thread della GUI: vedi `ThumbnailLoader` in `ui/widgets.py`.
 - **Chiusura**: `run.py` distrugge esplicitamente la finestra con `shiboken6.delete(window)` prima di uscire. Senza, Python crasha alla chiusura (SIGSEGV/SIGBUS in `~QObject`). Non reintrodurre `sys.exit()` dentro `main()`. `tests/test_run_exit.py` controlla che la correzione resti; la prova vera, da rilanciare quando si tocca la chiusura, è `~/image-dataset-studio/venv/bin/python -I tools/exit_repro.py tags --runs 8` (crash intermittente: ripetere più volte).
 - Un QThread ancora attivo non va mai distrutto: vedi `MainWindow.closeEvent`.
-- Dopo uno Stop durante un download VLM, i thread di huggingface_hub continuano a scaricare e Python li aspetterebbe all'uscita (processo vivo a finestra chiusa): `run.py` esce con `os._exit` se `vlm.downloads_in_background()`. `tests/test_run_exit.py` lo controlla.
+- Dopo uno Stop durante un download VLM, i thread di huggingface_hub continuano a scaricare e Python li aspetterebbe all'uscita (processo vivo a finestra chiusa): `run.py` esce con `os._exit` se `vlm.downloads_in_background()`. `tests/test_run_exit.py` lo controlla. huggingface_hub 2.x non riprende i download interrotti (un `<hash>.<uuid>.incomplete` diverso a ogni tentativo): il parziale lasciato dall'uscita viene cancellato al download successivo da `vlm.remove_orphan_partials`.
 - Enum Qt sempre nella forma completa (`Qt.CheckState.Checked`, `QMessageBox.StandardButton.Yes`): la forma corta
   funziona solo per compatibilità in PySide6 e mypy la segnala come errore.
 - Lo stile è `EmojiSafeStyle` (`ui/main_window.py`): Fusion con i titoli dei `QGroupBox` misurati correttamente con le emoji, che non impongono la larghezza minima e si accorciano con "…". Non tornare a `app.setStyle("Fusion")`. I pulsanti invece non si accorciano: con testi lunghi in una lingua, abbrevia la traduzione.
@@ -130,6 +130,8 @@ L'hook GateGuard di ECC chiede alcuni dati (chiamanti, istruzione dell'utente) a
 
 ## Lavori aperti
 
-- Prove manuali fatte dall'utente il 25/10 (installazione aggiornata anche dopo la PR #4, captioning VLM, nessun crash né errore). Mai provati esplicitamente: fallback CUDA→CPU di onnxruntime, uscita forzata dopo 30 s in `closeEvent`.
+- Prove manuali fatte dall'utente il 25/10 e il 30/10 (installazione aggiornata dopo le PR #12–#13, caption con Florence-2-large su CPU, nessun errore).
+- Verificati il 30/10 con l'installazione reale: fallback CUDA→CPU di onnxruntime (`CUDA_VISIBLE_DEVICES=""`: stessi tag, provider `CPUExecutionProvider`), WD14 senza rete (`unshare -rn`: cache verificata, cache senza marcatori con avviso, modello assente con errore chiaro), uscita forzata dopo 30 s in `closeEvent` (offscreen, worker che ignora lo stop), Florence-2 e moondream2 su CUDA.
+- Mai provati: JoyCaption con transformers 5 (mai scaricato, ~16 GB), moondream2 su CPU, prove con display reale (barra di download VLM, larghezza minima in tedesco/spagnolo, CJK senza font).
 - Nota: Ctrl+V della scheda Singola **non** scatta dalle altre schede (Qt ignora le scorciatoie dei widget nascosti, verificato offscreen): non serve cambiare il contesto del `QShortcut`.
 - Cache WD14: ogni file viene verificato una volta con l'`x-linked-etag` di HF (sha256 per LFS, sha1 del blob git per i file normali) e marcato con `<file>.verified` (dimensione + etag). Senza rete si usa la cache con un avviso (PR #4).
