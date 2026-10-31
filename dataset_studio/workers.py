@@ -12,7 +12,7 @@ from PySide6.QtGui import QImage
 
 from .config import AVAILABLE_MODELS
 from .dataset import layout
-from .engines import wd14
+from .engines import wd14, vlm
 from .i18n import tr
 from .images import flatten_to_rgb
 from .model_manager import manager
@@ -215,7 +215,7 @@ class BatchCaptionThread(_BaseWorker):
                 with Image.open(img_path) as im:
                     image = flatten_to_rgb(im)
 
-                caption = backend.caption(image, instruction, max_tokens)
+                caption = vlm.single_line_caption(backend.caption(image, instruction, max_tokens))
                 if prefix:
                     caption = f"{prefix}, {caption}"
 
