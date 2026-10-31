@@ -303,6 +303,7 @@ _ENTRIES = [
     ("mass.no_photo", "Nessuna foto", "No image"),
     ("mass.photo_read_error", "Errore lettura foto", "Image read error"),
     ("mass.log_photo_saved", "💾 Tag salvati su disco per {file} ({count} tag)", "💾 Tags saved to disk for {file} ({count} tags)"),
+    ("mass.log_photo_kept", "📝 Modifiche ai tag di {file} tenute in memoria (non ancora salvate su disco)", "📝 Tag changes for {file} kept in memory (not yet saved to disk)"),
     ("mass.empty_fields_title", "Campi Vuoti", "Empty Fields"),
     ("mass.empty_fields_body", "Inserisci sia il vecchio tag che il nuovo tag da sostituire.", "Enter both the old tag and the new tag to replace it with."),
     ("mass.log_replaced", "✏️ Sostituito tag '{old}' -> '{new}' in {count} file.", "✏️ Replaced tag '{old}' -> '{new}' in {count} files."),

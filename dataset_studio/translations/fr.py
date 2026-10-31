@@ -248,6 +248,7 @@ STRINGS = {
     "mass.no_photo": "Aucune image",
     "mass.photo_read_error": "Erreur de lecture de l'image",
     "mass.log_photo_saved": "💾 Tags enregistrés sur le disque pour {file} ({count} tags)",
+    "mass.log_photo_kept": "📝 Modifications des tags de {file} gardées en mémoire (pas encore enregistrées sur le disque)",
     "mass.empty_fields_title": "Champs vides",
     "mass.empty_fields_body": "Saisis l'ancien tag et le nouveau tag qui le remplace.",
     "mass.log_replaced": "✏️ Tag '{old}' -> '{new}' remplacé dans {count} fichiers.",
