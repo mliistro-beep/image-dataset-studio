@@ -4,9 +4,45 @@
 import os
 from typing import Dict, Iterable, Tuple
 
-from PySide6.QtCore import Qt, QObject, QRunnable, QThreadPool, Signal, Slot
+from PySide6.QtCore import Qt, QEvent, QObject, QRunnable, QSize, QThreadPool, Signal, Slot
 from PySide6.QtGui import QPixmap, QColor, QWheelEvent, QPainter, QImage, QImageReader
-from PySide6.QtWidgets import QTableWidgetItem, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem
+from PySide6.QtWidgets import (
+    QTableWidgetItem, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QScrollArea, QFrame, QSizePolicy, QWidget
+)
+
+
+class SidebarScrollArea(QScrollArea):
+    """Colonna laterale che scorre solo in verticale: larga almeno `base_width`, ma mai meno di quanto chiede il
+    contenuto più la barra verticale. Con una larghezza fissa, testi lunghi (traduzioni, nomi dei modelli) rendevano
+    il contenuto più largo dello spazio visibile: Qt lo faceva scorrere in orizzontale e il bordo sinistro spariva."""
+
+    def __init__(self, content: QWidget, base_width: int, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.base_width = base_width
+        self.setWidget(content)
+        self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+
+    def _needed_width(self) -> int:
+        content = self.widget()
+        content_width = content.minimumSizeHint().width() if content is not None else 0
+        # La barra si conta sempre: quando compare non deve togliere spazio al contenuto
+        bar_width = self.verticalScrollBar().sizeHint().width()
+        return max(self.base_width, content_width + bar_width + 2 * self.frameWidth())
+
+    def sizeHint(self) -> QSize:
+        return QSize(self._needed_width(), super().sizeHint().height())
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(self._needed_width(), super().minimumSizeHint().height())
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        # Il contenuto cambia larghezza minima (testi di stato, elementi mostrati o nascosti): ricalcola la colonna
+        if watched is self.widget() and event.type() == QEvent.Type.LayoutRequest:
+            self.updateGeometry()
+        return super().eventFilter(watched, event)
 
 
 class _ThumbnailTask(QRunnable):
