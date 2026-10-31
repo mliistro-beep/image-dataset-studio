@@ -295,6 +295,7 @@ _ENTRIES = [
     ("mass.photo_tags_ph", "Tag della foto selezionata...", "Tags of the selected image..."),
     ("mass.save_photo", "💾 Salva Tag Questa Foto", "💾 Save Tags for This Image"),
     ("mass.log_read_error", "⚠️ Errore lettura {file}: {error}", "⚠️ Error reading {file}: {error}"),
+    ("mass.unreadable_file", "⚠️ {file} non è leggibile (non è UTF-8?): Mass Edit non lo modifica", "⚠️ {file} cannot be read (not UTF-8?): Mass Edit leaves it unchanged"),
     ("mass.stats", "📊 Dataset Mass Edit: {images} immagini | {unique} tag unici | {total} occorrenze totali",
      "📊 Mass Edit dataset: {images} images | {unique} unique tags | {total} total occurrences"),
     ("mass.filtered", "🔍 Immagini contenenti il tag '{tag}': {matched} su {total}", "🔍 Images containing the tag '{tag}': {matched} of {total}"),

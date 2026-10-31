@@ -241,6 +241,7 @@ STRINGS = {
     "mass.photo_tags_ph": "Tags de l'image sélectionnée...",
     "mass.save_photo": "💾 Enregistrer ces tags",
     "mass.log_read_error": "⚠️ Erreur de lecture de {file} : {error}",
+    "mass.unreadable_file": "⚠️ Impossible de lire {file} (pas en UTF-8 ?) : Mass Edit ne le modifie pas",
     "mass.stats": "📊 Dataset Mass Edit : {images} images | {unique} tags uniques | {total} occurrences au total",
     "mass.filtered": "🔍 Images contenant le tag '{tag}' : {matched} sur {total}",
     "mass.all_images": "🖼️ Toutes les images : {total}",
