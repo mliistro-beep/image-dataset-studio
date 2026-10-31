@@ -217,7 +217,8 @@ def apply_dark_palette(app):
     dark_palette.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))
     dark_palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
     dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(45, 45, 45))
-    dark_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(220, 220, 220))
+    # Sfondo scuro: con lo stesso colore del testo (220) i tooltip erano rettangoli grigi senza testo leggibile
+    dark_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(30, 30, 30))
     dark_palette.setColor(QPalette.ColorRole.ToolTipText, QColor(220, 220, 220))
     dark_palette.setColor(QPalette.ColorRole.Text, QColor(220, 220, 220))
     dark_palette.setColor(QPalette.ColorRole.Button, QColor(45, 45, 45))
