@@ -212,7 +212,8 @@ class BatchTabBase(QWidget):
         self._load_dataset(base_dir)
 
     def _load_dataset(self, base_dir: str):
-        self._auto_save_current_file()
+        # Il dataset è già cambiato: si può solo salvare o scartare, non annullare
+        self.maybe_save_text(allow_cancel=False)
         self.base_dir = base_dir
         self.refresh_gallery()
         self.refresh_summary()
@@ -229,7 +230,7 @@ class BatchTabBase(QWidget):
         self._update_start_button()
 
     def refresh_gallery(self):
-        self._auto_save_current_file()
+        self.maybe_save_text(allow_cancel=False)
         self.gallery_files = layout.list_images(self.original_dir()) if self.base_dir else []
         self.gallery_rows = {f: i for i, f in enumerate(self.gallery_files)}
         self.list_gallery.blockSignals(True)
@@ -261,7 +262,14 @@ class BatchTabBase(QWidget):
     def _on_gallery_selection_changed(self):
         if self.is_processing:
             return
-        self._auto_save_current_file()
+        if not self.maybe_save_text():
+            # Il testo resta nell'editor: si torna all'immagine a cui appartiene
+            row = self.gallery_rows.get(self.current_selected_filename)
+            if row is not None:
+                self.list_gallery.blockSignals(True)
+                self.list_gallery.setCurrentRow(row)
+                self.list_gallery.blockSignals(False)
+            return
 
         current_item = self.list_gallery.currentItem()
         if not current_item or not self.base_dir:
@@ -333,19 +341,40 @@ class BatchTabBase(QWidget):
             self.lbl_save_status.setText(tr("batch.save_error", error=e))
             self.lbl_save_status.setStyleSheet("color: #ff4444; font-weight: bold; font-size: 11px;")
 
-    def _auto_save_current_file(self):
+    def maybe_save_text(self, allow_cancel: bool = True) -> bool:
+        """Salva il testo dell'editor se è cambiato. False se il salvataggio fallisce e l'utente sceglie di
+        tenere il testo nell'editor (solo con allow_cancel)."""
         if not self.current_selected_filename or not self.base_dir or self.is_processing:
-            return
+            return True
         current_text = self.txt_output.toPlainText()
         # Anche se il file era vuoto o assente: il testo scritto a mano non va perso cambiando immagine
-        if current_text != self.last_loaded_text:
-            txt_filename = layout.txt_name(self.current_selected_filename)
-            try:
-                self._write_text(self.current_selected_filename, current_text)
-                self.last_loaded_text = current_text
-                self.log_signal.emit(tr("batch.log_autosaved", file=txt_filename))
-            except Exception as e:
-                print(f"Errore auto-salvataggio: {e}")
+        if current_text == self.last_loaded_text:
+            return True
+        txt_filename = layout.txt_name(self.current_selected_filename)
+        try:
+            self._write_text(self.current_selected_filename, current_text)
+        except OSError as e:
+            self.log_signal.emit(tr("batch.log_save_failed", file=txt_filename, error=e))
+            return self._confirm_discard(txt_filename, e, allow_cancel)
+        self.last_loaded_text = current_text
+        self.log_signal.emit(tr("batch.log_autosaved", file=txt_filename))
+        return True
+
+    def _confirm_discard(self, txt_filename: str, error: OSError, allow_cancel: bool) -> bool:
+        buttons = QMessageBox.StandardButton.Discard
+        default = QMessageBox.StandardButton.Discard
+        if allow_cancel:
+            buttons |= QMessageBox.StandardButton.Cancel
+            default = QMessageBox.StandardButton.Cancel
+        answer = QMessageBox.warning(self, tr("batch.save_failed_title"),
+                                     tr("batch.save_failed_body", file=txt_filename, error=error), buttons, default)
+        if answer == QMessageBox.StandardButton.Cancel:
+            return False
+        # Scartato: un salvataggio successivo (es. refresh_gallery dopo il cambio di dataset, con base_dir già
+        # nuovo) non deve riprovare a scriverlo
+        self.last_loaded_text = self.txt_output.toPlainText()
+        self.log_signal.emit(tr("batch.log_text_discarded", file=txt_filename))
+        return True
 
     # ------------------------------------------------------------------
     # Elaborazione
@@ -360,7 +389,8 @@ class BatchTabBase(QWidget):
         if manager.busy():
             QMessageBox.information(self, tr("common.busy_title"), tr("common.busy_body"))
             return None
-        self._auto_save_current_file()
+        if not self.maybe_save_text():
+            return None
         errors, warnings = layout.validate_original(self.original_dir())
         if errors:
             for e in errors:

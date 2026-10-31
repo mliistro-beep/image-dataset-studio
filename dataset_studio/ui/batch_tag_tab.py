@@ -183,15 +183,15 @@ class BatchTagTab(BatchTabBase):
     # Mass Edit
     # ------------------------------------------------------------------
     def _toggle_mass_edit(self, checked: bool):
-        if not checked and not self.widget_massedit.maybe_save():
-            # Annullato: si resta in Mass Edit con le modifiche in memoria
+        saved = self.maybe_save_text() if checked else self.widget_massedit.maybe_save()
+        if not saved:
+            # Annullato: si resta dove si era, con le modifiche ancora nell'editor o in memoria
             self.btn_mass_edit.blockSignals(True)
-            self.btn_mass_edit.setChecked(True)
+            self.btn_mass_edit.setChecked(not checked)
             self.btn_mass_edit.blockSignals(False)
             return
         self.stack.setCurrentIndex(1 if checked else 0)
         if checked:
-            self._auto_save_current_file()
             self._reload_mass_edit()
         elif self.base_dir and self.list_gallery.currentItem():
             # Mass Edit può aver riscritto il .txt mostrato nell'editor
