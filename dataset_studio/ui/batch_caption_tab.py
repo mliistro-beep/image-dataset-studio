@@ -3,7 +3,7 @@
 """Scheda Batch Caption: caption in linguaggio naturale con VLM, salvate in dataset_captions."""
 import os
 import re
-from typing import cast
+from typing import List, Tuple, cast
 
 from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (
@@ -175,6 +175,11 @@ class VLMSettingsBox(QGroupBox):
         })
 
 
+def _read_text(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
 class FindReplaceDialog(QDialog):
     """Trova e sostituisci (testo o regex) su tutte le caption di dataset_captions."""
 
@@ -221,32 +226,43 @@ class FindReplaceDialog(QDialog):
         if pattern is None:
             self.lbl_preview.setText("")
             return
-        occurrences, files = 0, 0
+        occurrences, files, unreadable = 0, 0, 0
         for path in self._txt_files():
-            with open(path, "r", encoding="utf-8") as f:
-                n = len(pattern.findall(f.read()))
+            try:
+                text = _read_text(path)
+            except (OSError, UnicodeDecodeError):
+                unreadable += 1
+                continue
+            n = len(pattern.findall(text))
             occurrences += n
             files += 1 if n else 0
-        self.lbl_preview.setText(tr("find.preview", count=occurrences, files=files))
+        preview = tr("find.preview", count=occurrences, files=files)
+        if unreadable:
+            preview += "\n" + tr("find.preview_unreadable", count=unreadable)
+        self.lbl_preview.setText(preview)
 
-    def apply(self) -> int:
+    def apply(self) -> Tuple[int, List[str]]:
+        """Ritorna (file modificati, messaggi per i file saltati). Un file non leggibile (es. non UTF-8) o non
+        scrivibile viene saltato: prima l'eccezione fermava la sostituzione a metà, senza dire dove."""
         pattern = self._pattern()
         if pattern is None:
-            return 0
+            return 0, []
         replacement = self.entry_replace.text()
         changed = 0
+        problems = []
         for path in self._txt_files():
-            with open(path, "r", encoding="utf-8") as f:
-                old = f.read()
-            if self.chk_regex.isChecked():
-                new = pattern.sub(replacement, old)
-            else:
-                new = pattern.sub(lambda _m: replacement, old)
-            if new != old:
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(new)
-                changed += 1
-        return changed
+            try:
+                old = _read_text(path)
+                if self.chk_regex.isChecked():
+                    new = pattern.sub(replacement, old)
+                else:
+                    new = pattern.sub(lambda _m: replacement, old)
+                if new != old:
+                    layout.write_text_atomic(path, new)
+                    changed += 1
+            except (OSError, UnicodeError) as e:
+                problems.append(tr("find.file_skipped", file=os.path.basename(path), error=e))
+        return changed, problems
 
 
 class BatchCaptionTab(BatchTabBase):
@@ -310,12 +326,16 @@ class BatchCaptionTab(BatchTabBase):
         dlg = FindReplaceDialog(self.target_dir(), self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
-                changed = dlg.apply()
+                changed, problems = dlg.apply()
             except re.error as e:
                 QMessageBox.warning(self, tr("find.bad_regex_title"), str(e))
                 return
+            for problem in problems:
+                self.log_signal.emit(problem)
             self.log_signal.emit(tr("cap.log_replaced", count=changed, dir=CAPTIONS_DIR))
             self.refresh_gallery()
+            if problems:
+                QMessageBox.warning(self, tr("find.title"), tr("find.skipped_body", count=len(problems)))
 
     # ------------------------------------------------------------------
     def start_processing(self):

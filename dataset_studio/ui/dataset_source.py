@@ -133,6 +133,10 @@ class DatasetSourceBox(QGroupBox):
                 self._first_import(sources, base, tr("source.desc_archive", name=os.path.basename(file_path)))
         except layout.DatasetLayoutError as e:
             show_layout_errors(self, e.errors)
+        except OSError as e:
+            # Copia in original_dataset fallita (permessi, disco pieno): come import_new, non solo sul terminale
+            self.log_signal.emit(tr("source.log_archive_error", error=e))
+            QMessageBox.critical(self, tr("common.error"), tr("source.import_error", error=e))
         finally:
             clean_dir(TEMP_DATASET_DIR)
 
