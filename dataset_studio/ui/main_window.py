@@ -147,7 +147,9 @@ class MainWindow(QMainWindow):
             QApplication.quit()
 
     def closeEvent(self, event):
-        if not self.tab_tag.widget_massedit.maybe_save():
+        # Il testo degli editor Batch si salva solo cambiando immagine: alla chiusura andrebbe perso
+        editors_saved = all(tab.maybe_save_text() for tab in (self.tab_tag, self.tab_caption))
+        if not editors_saved or not self.tab_tag.widget_massedit.maybe_save():
             event.ignore()
             return
         if self._busy():
