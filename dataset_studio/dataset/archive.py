@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Estrazione degli archivi sorgente e creazione dell'archivio compresso finale."""
 import os
+import posixpath
 import shutil
 import tarfile
 import zipfile
-from typing import List, Literal
+from typing import IO, Any, Callable, Dict, List, Literal, Optional
 
 from ..config import IMAGE_EXTENSIONS
 from ..i18n import tr
@@ -25,46 +26,66 @@ def clean_dir(path: str):
     os.makedirs(path, exist_ok=True)
 
 
+def flat_names(paths: List[str]) -> Dict[str, str]:
+    """Nome senza cartelle per ogni percorso dell'archivio, sempre diverso dagli altri.
+
+    Se un nome compare in più cartelle tutte le immagini prendono la cartella come prefisso (setA/001.png ->
+    setA_001.png): con il solo nome base un'immagine sovrascriveva l'altra, e un prefisso solo sui duplicati
+    separerebbe le immagini della stessa cartella nella numerazione. Componenti "." e ".." vengono scartate."""
+    if len({posixpath.basename(p) for p in paths}) == len(paths):
+        return {p: posixpath.basename(p) for p in paths}
+    result: Dict[str, str] = {}
+    taken = set()
+    for path in sorted(paths):
+        parts = [part for part in posixpath.normpath(path).split("/") if part not in ("", ".", "..")]
+        stem, ext = os.path.splitext("_".join(parts))
+        name, n = stem + ext, 2
+        while name in taken:
+            name = f"{stem}_{n}{ext}"
+            n += 1
+        result[path] = name
+        taken.add(name)
+    return result
+
+
+def _copy_member(source: Optional[IO[bytes]], dest_path: str) -> bool:
+    if source is None:   # tarfile.extractfile: membro non regolare
+        return False
+    with source, open(dest_path, "wb") as out:
+        shutil.copyfileobj(source, out)
+    return True
+
+
+def _extract_members(members: Dict[str, Any], open_member: Callable[[Any], Optional[IO[bytes]]],
+                     dest_dir: str) -> List[str]:
+    """members: {percorso nell'archivio: membro}. Il .txt di un'immagine è quello nella sua stessa cartella."""
+    images = [p for p in members if os.path.splitext(p)[1].lower() in IMAGE_EXTENSIONS]
+    names = flat_names(images)
+    extracted = []
+    for path in sorted(images):
+        name = names[path]
+        if not _copy_member(open_member(members[path]), os.path.join(dest_dir, name)):
+            continue
+        extracted.append(name)
+        txt_path = os.path.splitext(path)[0] + ".txt"
+        if txt_path in members:
+            _copy_member(open_member(members[txt_path]), os.path.join(dest_dir, os.path.splitext(name)[0] + ".txt"))
+    return sorted(extracted)
+
+
 def extract_archive(file_path: str, dest_dir: str) -> List[str]:
     """Estrae immagini e relativi .txt (appiattendo le sottocartelle). Ritorna i nomi delle immagini."""
     clean_dir(dest_dir)
-    extracted = []
 
     if zipfile.is_zipfile(file_path):
         with zipfile.ZipFile(file_path, 'r') as zf:
-            members = [m for m in zf.infolist() if not m.is_dir()]
-            member_dict = {os.path.basename(m.filename): m for m in members}
-            for filename, member in member_dict.items():
-                if os.path.splitext(filename)[1].lower() in IMAGE_EXTENSIONS:
-                    with zf.open(member) as src_f, open(os.path.join(dest_dir, filename), "wb") as dst_f:
-                        shutil.copyfileobj(src_f, dst_f)
-                    extracted.append(filename)
-                    txt_filename = os.path.splitext(filename)[0] + ".txt"
-                    if txt_filename in member_dict:
-                        with zf.open(member_dict[txt_filename]) as src_f, open(os.path.join(dest_dir, txt_filename), "wb") as dst_f:
-                            shutil.copyfileobj(src_f, dst_f)
-
-    elif tarfile.is_tarfile(file_path):
+            zip_members = {m.filename: m for m in zf.infolist() if not m.is_dir()}
+            return _extract_members(zip_members, zf.open, dest_dir)
+    if tarfile.is_tarfile(file_path):
         with tarfile.open(file_path, 'r:*') as tf:
-            tar_members = [m for m in tf.getmembers() if m.isfile()]
-            tar_member_dict = {os.path.basename(m.name): m for m in tar_members}
-            for filename, tar_member in tar_member_dict.items():
-                if os.path.splitext(filename)[1].lower() in IMAGE_EXTENSIONS:
-                    source_file = tf.extractfile(tar_member)
-                    if source_file:
-                        with open(os.path.join(dest_dir, filename), "wb") as target_file:
-                            shutil.copyfileobj(source_file, target_file)
-                        extracted.append(filename)
-                    txt_filename = os.path.splitext(filename)[0] + ".txt"
-                    if txt_filename in tar_member_dict:
-                        txt_source = tf.extractfile(tar_member_dict[txt_filename])
-                        if txt_source:
-                            with open(os.path.join(dest_dir, txt_filename), "wb") as txt_file:
-                                shutil.copyfileobj(txt_source, txt_file)
-    else:
-        raise ValueError(tr("archive.unknown_format"))
-
-    return sorted(extracted)
+            tar_members = {m.name: m for m in tf.getmembers() if m.isfile()}
+            return _extract_members(tar_members, tf.extractfile, dest_dir)
+    raise ValueError(tr("archive.unknown_format"))
 
 
 def archive_stem(file_path: str) -> str:

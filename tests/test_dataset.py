@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Struttura del dataset (original_dataset / dataset_tags) e archivi."""
 import csv
+import io
 import os
+import tarfile
 import zipfile
 
 import pytest
@@ -95,6 +97,62 @@ def test_extract_zip_keeps_matching_txt(tmp_path):
 
     assert names == ["pic.png"]
     assert sorted(os.listdir(dest)) == ["pic.png", "pic.txt"]
+
+
+def png_bytes():
+    buf = io.BytesIO()
+    Image.new("RGB", (4, 4)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def write_archive(path, kind, members):
+    if kind == "zip":
+        with zipfile.ZipFile(path, "w") as zf:
+            for name, data in members.items():
+                zf.writestr(name, data)
+        return
+    with tarfile.open(path, "w:gz") as tf:
+        for name, data in members.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tf.addfile(info, io.BytesIO(data))
+
+
+def test_flat_names_keep_base_names_when_they_are_unique():
+    names = archive.flat_names(["setA/001.png", "setB/002.png"])
+
+    assert names == {"setA/001.png": "001.png", "setB/002.png": "002.png"}
+
+
+def test_flat_names_prefix_every_folder_when_a_name_repeats():
+    names = archive.flat_names(["setA/001.png", "setB/001.png", "setA/002.png", "003.png"])
+
+    assert names == {"setA/001.png": "setA_001.png", "setB/001.png": "setB_001.png",
+                     "setA/002.png": "setA_002.png", "003.png": "003.png"}
+
+
+def test_flat_names_are_always_unique_and_without_folders():
+    paths = ["a/x.png", "b/x.png", "a_x.png", "./c/../y.png", "../d/y.png"]
+
+    names = archive.flat_names(paths)
+
+    assert len(set(names.values())) == len(paths)
+    assert all("/" not in n and not n.startswith(".") for n in names.values())
+
+
+@pytest.mark.parametrize("kind", ["zip", "tar"])
+def test_extract_keeps_images_with_the_same_name_in_different_folders(tmp_path, kind):
+    path = tmp_path / f"set.{kind}"
+    write_archive(path, kind, {"setA/001.png": png_bytes(), "setA/001.txt": b"from A",
+                               "setB/001.png": png_bytes(), "setB/notes.txt": b"x", "setA/002.png": png_bytes()})
+    dest = tmp_path / "out"
+
+    names = archive.extract_archive(str(path), str(dest))
+
+    assert names == ["setA_001.png", "setA_002.png", "setB_001.png"]
+    assert (dest / "setA_001.txt").read_bytes() == b"from A"
+    # Il .txt di un'altra cartella non va attribuito all'immagine
+    assert not (dest / "setB_001.txt").exists()
 
 
 def test_write_zip_roundtrip_and_archive_stem(tmp_path):
