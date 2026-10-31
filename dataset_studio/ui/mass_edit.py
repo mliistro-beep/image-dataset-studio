@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..config import IMAGE_EXTENSIONS, MASS_EDIT_TEMP_DIR
+from ..dataset import layout
 from ..dataset.archive import archive_filter, archive_stem, extract_archive, write_zip
 from ..i18n import tr
 from .widgets import NumericTableWidgetItem, ThumbnailLoader, ZoomableImageView
@@ -609,8 +610,7 @@ class MassEditWidget(QWidget):
 
     def _write_tags(self, img_file: str, tags: List[str]):
         txt_path = os.path.join(self.image_folder, os.path.splitext(img_file)[0] + ".txt")
-        with open(txt_path, "w", encoding="utf-8") as f:
-            f.write(", ".join(tags))
+        layout.write_text_atomic(txt_path, ", ".join(tags))
 
     def save_all_changes_to_disk(self, quiet: bool = False) -> bool:
         """Scrive permanentemente le modifiche dei tag sui file .txt su disco. True se tutto è stato salvato."""

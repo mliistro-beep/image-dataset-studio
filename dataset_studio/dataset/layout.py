@@ -7,10 +7,12 @@ Regole:
 - dataset_tags e dataset_captions contengono copie con lo stesso nome + il relativo .txt
 - le immagini nuove ricevono il numero successivo all'ultimo presente
 """
+import contextlib
 import csv
 import os
 import re
 import shutil
+import tempfile
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -22,6 +24,10 @@ SEQ_NAME_RE = re.compile(r"^\d{3,}$")
 OTHER_IMAGE_EXTENSIONS = {".bmp", ".gif", ".tif", ".tiff", ".avif", ".heic", ".jxl"}
 # File ammessi in original_dataset oltre alle immagini
 ALLOWED_EXTRA_FILES = {RENAME_MAP_FILE}
+# Letta una volta all'import (thread principale): os.umask si legge solo cambiandola, e i worker scrivono
+# da altri thread
+_UMASK = os.umask(0)
+os.umask(_UMASK)
 
 
 class DatasetLayoutError(Exception):
@@ -179,6 +185,27 @@ def import_new_images(src_paths: List[str], base_dir: str) -> List[str]:
     if bad:
         raise DatasetLayoutError([tr("layout.import_bad_format", f=os.path.basename(p)) for p in bad])
     return _copy_numbered(sorted(src_paths, key=natural_key), original_dir, next_index(original_dir))
+
+
+def write_text_atomic(path: str, text: str) -> None:
+    """Scrive un .txt passando da un file temporaneo e os.replace: con un errore a metà (disco pieno, testo non
+    codificabile) il file resta quello di prima invece che troncato, e in modalità Append i tag esistenti non
+    si perdono. Niente fsync: con migliaia di file rallenterebbe molto, e serve solo contro un calo di corrente."""
+    # realpath: se il .txt è un link simbolico si aggiorna il file a cui punta, senza rompere il link
+    target = os.path.realpath(path)
+    fd, tmp_path = tempfile.mkstemp(prefix=".", suffix=".tmp", dir=os.path.dirname(target))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        if os.path.exists(target):
+            shutil.copymode(target, tmp_path)
+        else:
+            os.chmod(tmp_path, 0o666 & ~_UMASK)   # mkstemp crea il file 0600, open() rispetterebbe l'umask
+        os.replace(tmp_path, target)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.remove(tmp_path)
+        raise
 
 
 def pending_images(original_dir: str, target_dir: str, reprocess_all: bool) -> List[str]:
