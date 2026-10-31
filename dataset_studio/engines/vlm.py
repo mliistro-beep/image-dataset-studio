@@ -36,6 +36,14 @@ except ImportError:
     transformers = None
 
 
+def single_line_caption(text: str) -> str:
+    """Caption su una sola riga, con spazi singoli. I VLM (JoyCaption in particolare) a volte rispondono in più
+    paragrafi: nel .txt ogni riga è una caption a sé (Append, trainer che ne scelgono una per riga), e le righe dopo
+    la prima resterebbero senza trigger word."""
+    # str.split() senza argomenti divide su ogni spazio Unicode, compresi \r, \v, \f, \x85,   e
+    return " ".join(text.split())
+
+
 def vlm_dependencies_missing() -> Optional[str]:
     """Ritorna un messaggio con il comando pip se mancano le librerie VLM, altrimenti None."""
     missing = []
