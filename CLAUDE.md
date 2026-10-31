@@ -67,6 +67,9 @@ tools/exit_repro.py         prova manuale del crash alla chiusura, con l'install
   `snapshot_download` e a ogni `from_pretrained` (`tests/test_vlm_revisions.py`). Per aggiornare un modello, prova il
   nuovo commit e cambia lì l'hash.
 - **Mai perdere il testo dell'utente**: editor batch e Mass Edit salvano o chiedono prima di scartare (`maybe_save`). Ogni nuovo flusso che ricarica dati dal disco deve rispettare questa regola.
+- **Una caption per riga**: nei `.txt` di `dataset_captions/` ogni riga è una caption con il prefisso (Append ne
+  aggiunge una, i trainer ne scelgono una per riga). Le risposte dei VLM passano da `vlm.single_line_caption` prima
+  di essere scritte (`tests/test_caption_text.py`).
 - **Lo Stop deve funzionare** anche durante i download: passa `should_stop` a ogni operazione lunga. `InterruptedError` significa "fermato dall'utente", non un errore da mostrare.
 
 ## Qt e thread
@@ -75,6 +78,9 @@ tools/exit_repro.py         prova manuale del crash alla chiusura, con l'install
 - Le operazioni lente (miniature, I/O su molti file) non vanno nel thread della GUI: vedi `ThumbnailLoader` in `ui/widgets.py`.
 - **Chiusura**: `run.py` distrugge esplicitamente la finestra con `shiboken6.delete(window)` prima di uscire. Senza, Python crasha alla chiusura (SIGSEGV/SIGBUS in `~QObject`). Non reintrodurre `sys.exit()` dentro `main()`. `tests/test_run_exit.py` controlla che la correzione resti; la prova vera, da rilanciare quando si tocca la chiusura, è `~/image-dataset-studio/venv/bin/python -I tools/exit_repro.py tags --runs 8` (crash intermittente: ripetere più volte).
 - Un QThread ancora attivo non va mai distrutto: vedi `MainWindow.closeEvent`.
+- La colonna laterale delle schede Batch è un `SidebarScrollArea` (`ui/widgets.py`): non darle una larghezza fissa.
+  Si allarga quanto chiede il contenuto più la barra verticale; con una larghezza fissa il contenuto più largo scorreva
+  di lato e ne nascondeva il bordo sinistro.
 - Dopo uno Stop durante un download VLM, i thread di huggingface_hub continuano a scaricare e Python li aspetterebbe all'uscita (processo vivo a finestra chiusa): `run.py` esce con `os._exit` se `vlm.downloads_in_background()`. `tests/test_run_exit.py` lo controlla. huggingface_hub 2.x non riprende i download interrotti (un `<hash>.<uuid>.incomplete` diverso a ogni tentativo): il parziale lasciato dall'uscita viene cancellato al download successivo da `vlm.remove_orphan_partials`.
 - Enum Qt sempre nella forma completa (`Qt.CheckState.Checked`, `QMessageBox.StandardButton.Yes`): la forma corta
   funziona solo per compatibilità in PySide6 e mypy la segnala come errore.
@@ -132,6 +138,23 @@ L'hook GateGuard di ECC chiede alcuni dati (chiamanti, istruzione dell'utente) a
 
 - Prove manuali fatte dall'utente il 25/10 e il 30/10 (installazione aggiornata dopo le PR #12–#13, caption con Florence-2-large su CPU, nessun errore).
 - Verificati il 30/10 con l'installazione reale: fallback CUDA→CPU di onnxruntime (`CUDA_VISIBLE_DEVICES=""`: stessi tag, provider `CPUExecutionProvider`), WD14 senza rete (`unshare -rn`: cache verificata, cache senza marcatori con avviso, modello assente con errore chiaro), uscita forzata dopo 30 s in `closeEvent` (offscreen, worker che ignora lo stop), Florence-2 e moondream2 su CUDA.
-- Mai provati: JoyCaption con transformers 5 (mai scaricato, ~16 GB), moondream2 su CPU, prove con display reale (barra di download VLM, larghezza minima in tedesco/spagnolo, CJK senza font).
+- Controllo generale del codice del 31/10 (PR #16–#21): editor Batch e Mass Edit non perdono più testo, scrittura
+  atomica dei `.txt` (`layout.write_text_atomic`), nomi unici negli archivi estratti, tooltip leggibili, `setPlainText`
+  negli editor. Installazione dell'utente aggiornata e verificata (Batch Tag reale su CUDA, Sovrascrivi e Append).
+- Verificato il 31/10 dall'utente con l'installazione reale: JoyCaption Beta One con transformers 5.20.1 e
+  bitsandbytes 0.50.2, 4-bit su CUDA, profilo GPU (~5,5 GB di VRAM, caricamento ~75 s, nessun errore), sia in
+  Estrazione prompt sia in Batch Caption (11 immagini: Sovrascrivi, Aggiungi in coda con "Rielabora tutto", Stop a
+  metà; `.txt` completi in UTF-8, nessun temporaneo rimasto). L'avviso di bitsandbytes "inner dimension (4304) is not
+  aligned for fast kernel" è innocuo: usa solo un kernel più lento.
+- PR aperte il 31/10, da unire prima di questo aggiornamento: #22 colonna laterale che scorreva di lato e nascondeva
+  "Rielabora tutto" (provata dall'utente con display reale), #23 riga ETA che abbassava di metà il blocco centrale
+  durante il lavoro (provata con display reale), #24 caption dei VLM su una riga (JoyCaption risponde a volte in
+  paragrafi: righe senza trigger word nei `.txt`). I `.txt` scritti prima di #24 possono avere caption su più righe:
+  si sistemano con un nuovo giro in Sovrascrivi.
+- Mai provati: moondream2 su CPU; prove con display reale (dialogo "Testo non salvato", aspetto dei tooltip, `.txt` con
+  tag HTML in un editor, barra di download VLM, colonna laterale e larghezza minima in lingue diverse dall'italiano,
+  CJK senza font).
+- Lasciati di proposito (LOW): un `.txt` in una cartella diversa dall'immagine (es. `labels/001.txt`) non viene
+  abbinato, senza avviso; l'ispettore di Mass Edit è in sola lettura quando non c'è selezione.
 - Nota: Ctrl+V della scheda Singola **non** scatta dalle altre schede (Qt ignora le scorciatoie dei widget nascosti, verificato offscreen): non serve cambiare il contesto del `QShortcut`.
 - Cache WD14: ogni file viene verificato una volta con l'`x-linked-etag` di HF (sha256 per LFS, sha1 del blob git per i file normali) e marcato con `<file>.verified` (dimensione + etag). Senza rete si usa la cache con un avviso (PR #4).
