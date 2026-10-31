@@ -243,8 +243,7 @@ class FindReplaceDialog(QDialog):
             else:
                 new = pattern.sub(lambda _m: replacement, old)
             if new != old:
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(new)
+                layout.write_text_atomic(path, new)
                 changed += 1
         return changed
 

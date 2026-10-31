@@ -158,8 +158,7 @@ class BatchTaggingThread(_BaseWorker):
                     stats["total_written"] += len(final_tags)
                     self.log_signal.emit(tr("worker.tag_overwrite", file=txt_filename, count=len(final_tags)))
 
-                with open(txt_path, "w", encoding="utf-8") as f:
-                    f.write(caption_str)
+                layout.write_text_atomic(txt_path, caption_str)
 
                 processed_count += 1
                 eta.update(time.time() - t0)
@@ -231,8 +230,7 @@ class BatchCaptionThread(_BaseWorker):
                 else:
                     self.log_signal.emit(tr("worker.caption_overwrite", file=txt_filename, words=len(caption.split())))
 
-                with open(txt_path, "w", encoding="utf-8") as f:
-                    f.write(caption)
+                layout.write_text_atomic(txt_path, caption)
 
                 processed_count += 1
                 eta.update(time.time() - t0)

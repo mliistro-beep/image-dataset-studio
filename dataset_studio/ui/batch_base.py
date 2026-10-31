@@ -314,8 +314,7 @@ class BatchTabBase(QWidget):
     def _write_text(self, filename: str, text: str):
         # L'immagine deve esistere accanto al .txt nella cartella target
         layout.sync_image(filename, self.original_dir(), self.target_dir(), seed_txt=False)
-        with open(self._txt_path(filename), "w", encoding="utf-8") as f:
-            f.write(text)
+        layout.write_text_atomic(self._txt_path(filename), text)
 
     def save_current_text(self):
         if not self.current_selected_filename or not self.base_dir:
