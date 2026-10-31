@@ -326,6 +326,9 @@ STRINGS = {
     "find.bad_regex": "❌ 无效的正则表达式：{error}",
     "find.bad_regex_title": "无效的正则表达式",
     "find.preview": "🔍 在 {files} 个文件中找到 {count} 处",
+    "find.preview_unreadable": "⚠️ 将跳过 {count} 个无法读取的文件（不是 UTF-8？）",
+    "find.file_skipped": "⚠️ 查找和替换：已跳过 {file}：{error}",
+    "find.skipped_body": "有 {count} 个文件因无法读取或写入而未被修改：详情见日志。",
 
     # --- Singola immagine ---
     "single.image_box": "🖼️ 图像（将文件拖到此处，或按 Ctrl+V）",
