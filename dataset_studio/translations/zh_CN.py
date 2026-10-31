@@ -241,6 +241,7 @@ STRINGS = {
     "mass.photo_tags_ph": "所选图像的标签...",
     "mass.save_photo": "💾 保存此图像的标签",
     "mass.log_read_error": "⚠️ 读取 {file} 出错：{error}",
+    "mass.unreadable_file": "⚠️ 无法读取 {file}（不是 UTF-8？）：Mass Edit 不会修改它",
     "mass.stats": "📊 批量编辑数据集：{images} 张图像 | {unique} 个不同标签 | 共出现 {total} 次",
     "mass.filtered": "🔍 包含标签 '{tag}' 的图像：{matched} / {total}",
     "mass.all_images": "🖼️ 全部图像：{total}",

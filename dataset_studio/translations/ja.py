@@ -241,6 +241,7 @@ STRINGS = {
     "mass.photo_tags_ph": "選択した画像のタグ...",
     "mass.save_photo": "💾 この画像のタグを保存",
     "mass.log_read_error": "⚠️ {file} の読み込みエラー：{error}",
+    "mass.unreadable_file": "⚠️ {file} を読み込めません（UTF-8 ではない？）: Mass Edit はこのファイルを変更しません",
     "mass.stats": "📊 一括編集のデータセット：画像 {images} 枚 | ユニークタグ {unique} 個 | 出現回数 合計 {total}",
     "mass.filtered": "🔍 タグ '{tag}' を含む画像：{matched} / {total}",
     "mass.all_images": "🖼️ すべての画像：{total}",

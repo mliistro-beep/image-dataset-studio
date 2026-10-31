@@ -3,7 +3,7 @@
 """Mass Tag Editor & Cleaner: logica dello script originale, testi localizzati, avviso sulle modifiche non salvate."""
 import os
 from collections import Counter
-from typing import List, Optional
+from typing import Dict, List, Optional, Set
 
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QPixmap, QIcon, QImage
@@ -19,6 +19,10 @@ from ..i18n import tr
 from .widgets import NumericTableWidgetItem, ThumbnailLoader, ZoomableImageView
 
 
+def split_tags(text: str) -> List[str]:
+    return [t.strip() for t in text.split(",") if t.strip()]
+
+
 class MassEditWidget(QWidget):
     """Pannello dedicato alla manipolazione in massa (Mass Edit & Tag Cleaner) del dataset."""
     log_signal = Signal(str)
@@ -29,6 +33,10 @@ class MassEditWidget(QWidget):
         self.image_folder = ""
         self.image_files = []
         self.dataset_data = {}  # {filename: [list_of_tags]}
+        # Tag come sono su disco: "Salva tutto" riscrive solo i file che ne differiscono
+        self.saved_data: Dict[str, List[str]] = {}
+        # .txt che non si sono potuti leggere: fuori da dataset_data, così nessuna operazione li sovrascrive
+        self.unreadable: Set[str] = set()
         self.tag_counter: Counter[str] = Counter()
         self.selected_tag_filter = None
         self.checked_tags = set()   # spunte conservate anche per i tag nascosti dal filtro
@@ -231,6 +239,8 @@ class MassEditWidget(QWidget):
         self.dirty = False
         self.image_files = sorted(image_files)
         self.dataset_data = {}
+        self.saved_data = {}
+        self.unreadable = set()
         self.tag_counter = Counter()
 
         for img_file in self.image_files:
@@ -241,13 +251,15 @@ class MassEditWidget(QWidget):
             if os.path.exists(txt_path):
                 try:
                     with open(txt_path, "r", encoding="utf-8") as f:
-                        content = f.read().strip()
-                    if content:
-                        tags = [t.strip() for t in content.split(",") if t.strip()]
-                except Exception as e:
+                        tags = split_tags(f.read())
+                except (OSError, UnicodeDecodeError) as e:
+                    # Con una lista vuota al suo posto, "Salva tutto" cancellerebbe i tag del file
+                    self.unreadable.add(img_file)
                     self.log_signal.emit(tr("mass.log_read_error", file=txt_file, error=e))
+                    continue
 
             self.dataset_data[img_file] = tags
+            self.saved_data[img_file] = list(tags)
             for t in tags:
                 self.tag_counter[t] += 1
 
@@ -407,7 +419,11 @@ class MassEditWidget(QWidget):
             return
 
         filename = current_item.text()
-        self.lbl_single_filename.setText(filename)
+        unreadable = filename in self.unreadable
+        txt_file = os.path.splitext(filename)[0] + ".txt"
+        self.lbl_single_filename.setText(tr("mass.unreadable_file", file=txt_file) if unreadable else filename)
+        # Il campo vuoto sembrerebbe "nessun tag": salvandolo si cancellerebbe il contenuto del file
+        self.txt_single_tags.setReadOnly(unreadable)
 
         img_path = os.path.join(self.image_folder, filename)
         if os.path.exists(img_path):
@@ -426,10 +442,12 @@ class MassEditWidget(QWidget):
             return
 
         filename = current_item.text()
-        new_text = self.txt_single_tags.toPlainText().strip()
-        new_tags = [t.strip() for t in new_text.split(",") if t.strip()]
-
         txt_filename = os.path.splitext(filename)[0] + ".txt"
+        if filename in self.unreadable:
+            self.log_signal.emit(tr("mass.unreadable_file", file=txt_filename))
+            return
+        new_tags = split_tags(self.txt_single_tags.toPlainText())
+
         try:
             self._write_tags(filename, new_tags)
         except OSError as e:
@@ -437,6 +455,7 @@ class MassEditWidget(QWidget):
             QMessageBox.critical(self, tr("common.error"), tr("mass.log_save_error", file=txt_filename, error=e))
             return
         self.dataset_data[filename] = new_tags
+        self.saved_data[filename] = list(new_tags)
         self.log_signal.emit(tr("mass.log_photo_saved", file=filename, count=len(new_tags)))
         self.refresh_tag_table()
 
@@ -569,8 +588,12 @@ class MassEditWidget(QWidget):
         written_count = 0
         errors = 0
         for img_file, tags in self.dataset_data.items():
+            # I file non modificati restano come sono (spazi, a capo, formato originale)
+            if tags == self.saved_data.get(img_file):
+                continue
             try:
                 self._write_tags(img_file, tags)
+                self.saved_data[img_file] = list(tags)
                 written_count += 1
             except OSError as e:
                 errors += 1
