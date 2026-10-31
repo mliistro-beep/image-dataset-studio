@@ -12,6 +12,10 @@ from ..config import IMAGE_EXTENSIONS
 from ..i18n import tr
 
 
+# Limite dei nomi di file su Linux (255 byte), con margine per il suffisso "_N", l'estensione e ".txt"
+STEM_MAX_BYTES = 255 - 32
+
+
 def archive_filter() -> str:
     return tr("archive.filter")
 
@@ -26,25 +30,37 @@ def clean_dir(path: str):
     os.makedirs(path, exist_ok=True)
 
 
-def flat_names(paths: List[str]) -> Dict[str, str]:
-    """Nome senza cartelle per ogni percorso dell'archivio, sempre diverso dagli altri.
+def _fit_stem(stem: str) -> str:
+    """Tiene la fine del nome (cartella più vicina e file) entro STEM_MAX_BYTES byte UTF-8, senza punto iniziale."""
+    data = stem.encode("utf-8")
+    if len(data) > STEM_MAX_BYTES:
+        stem = data[-STEM_MAX_BYTES:].decode("utf-8", errors="ignore")   # un carattere tagliato a metà si scarta
+    return stem.lstrip(".") or "image"
 
-    Se un nome compare in più cartelle tutte le immagini prendono la cartella come prefisso (setA/001.png ->
+
+def flat_names(paths: List[str]) -> Dict[str, str]:
+    """Nome senza cartelle per ogni percorso dell'archivio, con il nome senza estensione sempre diverso.
+
+    Il confronto è sul nome senza estensione perché il .txt lo condivide: a.png e a.jpg avrebbero lo stesso
+    a.txt. Se due immagini lo condividono tutte prendono la cartella come prefisso (setA/001.png ->
     setA_001.png): con il solo nome base un'immagine sovrascriveva l'altra, e un prefisso solo sui duplicati
-    separerebbe le immagini della stessa cartella nella numerazione. Componenti "." e ".." vengono scartate."""
-    if len({posixpath.basename(p) for p in paths}) == len(paths):
+    separerebbe le immagini della stessa cartella nella numerazione. Componenti "." e ".." vengono scartate,
+    e i nomi troppo lunghi per il filesystem vengono accorciati dall'inizio."""
+    stems = [os.path.splitext(posixpath.basename(p))[0] for p in paths]
+    if len(set(stems)) == len(paths) and all(len(s.encode("utf-8")) <= STEM_MAX_BYTES for s in stems):
         return {p: posixpath.basename(p) for p in paths}
     result: Dict[str, str] = {}
     taken = set()
     for path in sorted(paths):
         parts = [part for part in posixpath.normpath(path).split("/") if part not in ("", ".", "..")]
         stem, ext = os.path.splitext("_".join(parts))
-        name, n = stem + ext, 2
-        while name in taken:
-            name = f"{stem}_{n}{ext}"
+        stem = _fit_stem(stem)
+        candidate, n = stem, 2
+        while candidate in taken:
+            candidate = f"{stem}_{n}"
             n += 1
-        result[path] = name
-        taken.add(name)
+        result[path] = candidate + ext
+        taken.add(candidate)
     return result
 
 
