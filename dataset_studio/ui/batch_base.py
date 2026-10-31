@@ -156,7 +156,8 @@ class BatchTabBase(QWidget):
         preview_splitter.addWidget(box_text)
 
         preview_splitter.setSizes([220, 380, 420])
-        top_layout.addWidget(preview_splitter)
+        # Tutto lo spazio in più va al blocco: senza stretch la riga ETA, visibile durante il lavoro, ne prendeva metà
+        top_layout.addWidget(preview_splitter, stretch=1)
         central_splitter.addWidget(top_widget)
 
         extra = self.build_bottom_panel()
