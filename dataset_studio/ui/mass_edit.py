@@ -435,7 +435,7 @@ class MassEditWidget(QWidget):
     def _show_in_inspector(self, filename: Optional[str], text: str):
         self.inspector_file = filename
         self.inspector_text = text
-        self.txt_single_tags.setText(text)
+        self.txt_single_tags.setPlainText(text)   # setText interpreterebbe i tag HTML presenti nel testo
 
     def _on_gallery_selection_changed(self):
         if self._commit_inspector():
