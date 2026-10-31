@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QPixmap, QIcon, QImage, QFont
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QTextEdit,
-    QProgressBar, QSplitter, QListWidget, QListWidgetItem, QCheckBox, QMessageBox, QScrollArea, QFrame
+    QProgressBar, QSplitter, QListWidget, QListWidgetItem, QCheckBox, QMessageBox
 )
 
 from ..dataset import layout
@@ -17,7 +17,10 @@ from ..i18n import tr
 from ..model_manager import manager
 from ..workers import format_eta
 from .dataset_source import DatasetSourceBox, show_layout_errors
-from .widgets import ThumbnailLoader, ZoomableImageView
+from .widgets import SidebarScrollArea, ThumbnailLoader, ZoomableImageView
+
+# Larghezza di base della colonna laterale; si allarga solo se il contenuto lo chiede
+SIDEBAR_WIDTH = 350
 
 
 class BatchTabBase(QWidget):
@@ -77,13 +80,7 @@ class BatchTabBase(QWidget):
         self.sidebar_layout.addWidget(self.btn_stop)
         self.sidebar_layout.addStretch()
 
-        scroll = QScrollArea()
-        scroll.setWidget(sidebar)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setFixedWidth(350)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        main_layout.addWidget(scroll)
+        main_layout.addWidget(SidebarScrollArea(sidebar, SIDEBAR_WIDTH))
 
         central_splitter = QSplitter(Qt.Orientation.Vertical)
         top_widget = QWidget()
