@@ -140,6 +140,42 @@ def test_flat_names_are_always_unique_and_without_folders():
     assert all("/" not in n and not n.startswith(".") for n in names.values())
 
 
+@pytest.mark.parametrize("paths", [["x/a.png", "y/a.jpg"], ["x/a.png", "x/a.jpg"]])
+def test_flat_names_never_share_a_stem(paths):
+    # Il .txt prende il nome dell'immagine senza estensione: a.png e a.jpg avrebbero lo stesso a.txt
+    names = archive.flat_names(paths)
+
+    assert len({os.path.splitext(n)[0] for n in names.values()}) == len(paths)
+
+
+def test_flat_names_fit_the_file_name_limit():
+    deep = "/".join(f"cartella_lunghissima_è_{i:02d}" for i in range(20))
+    paths = [f"{deep}/a/001.png", f"{deep}/b/001.png", f"{deep}/c/001.png"]
+
+    names = archive.flat_names(paths)
+
+    assert len(set(names.values())) == len(paths)
+    for name in names.values():
+        txt = os.path.splitext(name)[0] + ".txt"
+        assert len(name.encode("utf-8")) <= 255 and len(txt.encode("utf-8")) <= 255
+        assert not name.startswith(".")
+    # Si tiene la parte finale, la più utile per riconoscere l'immagine
+    assert names[f"{deep}/b/001.png"].endswith("_b_001.png")
+
+
+def test_extract_pairs_each_txt_with_its_own_image_when_stems_repeat(tmp_path):
+    path = tmp_path / "set.zip"
+    write_archive(path, "zip", {"x/a.png": png_bytes(), "x/a.txt": b"XTXT",
+                                "y/a.jpg": png_bytes(), "y/a.txt": b"YTXT"})
+    dest = tmp_path / "out"
+
+    names = archive.extract_archive(str(path), str(dest))
+
+    assert names == ["x_a.png", "y_a.jpg"]
+    assert (dest / "x_a.txt").read_bytes() == b"XTXT"
+    assert (dest / "y_a.txt").read_bytes() == b"YTXT"
+
+
 @pytest.mark.parametrize("kind", ["zip", "tar"])
 def test_extract_keeps_images_with_the_same_name_in_different_folders(tmp_path, kind):
     path = tmp_path / f"set.{kind}"
