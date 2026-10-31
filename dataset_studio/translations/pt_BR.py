@@ -326,6 +326,9 @@ STRINGS = {
     "find.bad_regex": "❌ Regex inválida: {error}",
     "find.bad_regex_title": "Regex inválida",
     "find.preview": "🔍 {count} ocorrências em {files} arquivos",
+    "find.preview_unreadable": "⚠️ {count} arquivos ilegíveis (não UTF-8?) serão ignorados",
+    "find.file_skipped": "⚠️ Localizar e substituir: {file} ignorado: {error}",
+    "find.skipped_body": "{count} arquivos não foram alterados porque não puderam ser lidos ou gravados: os detalhes estão no log.",
 
     # --- Singola immagine ---
     "single.image_box": "🖼️ Imagem (arraste um arquivo para cá, ou Ctrl+V)",

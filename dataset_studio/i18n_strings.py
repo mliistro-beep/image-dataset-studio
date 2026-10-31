@@ -388,6 +388,9 @@ _ENTRIES = [
     ("find.bad_regex", "❌ Regex non valida: {error}", "❌ Invalid regex: {error}"),
     ("find.bad_regex_title", "Regex non valida", "Invalid regex"),
     ("find.preview", "🔍 {count} occorrenze in {files} file", "🔍 {count} occurrences in {files} files"),
+    ("find.preview_unreadable", "⚠️ {count} file non leggibili (non UTF-8?) verranno saltati", "⚠️ {count} unreadable files (not UTF-8?) will be skipped"),
+    ("find.file_skipped", "⚠️ Trova e sostituisci: {file} saltato: {error}", "⚠️ Find and replace: {file} skipped: {error}"),
+    ("find.skipped_body", "{count} file non sono stati modificati perché non si potevano leggere o scrivere: i dettagli sono nel log.", "{count} files were not changed because they could not be read or written: see the log for details."),
 
     # --- Singola immagine ------------------------------------------------------------
     ("single.image_box", "🖼️ Immagine (trascina qui un file, oppure Ctrl+V)", "🖼️ Image (drop a file here, or Ctrl+V)"),

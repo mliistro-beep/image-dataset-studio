@@ -326,6 +326,9 @@ STRINGS = {
     "find.bad_regex": "❌ Regex no válida: {error}",
     "find.bad_regex_title": "Regex no válida",
     "find.preview": "🔍 {count} coincidencias en {files} archivos",
+    "find.preview_unreadable": "⚠️ {count} archivos ilegibles (¿no UTF-8?) se omitirán",
+    "find.file_skipped": "⚠️ Buscar y reemplazar: {file} omitido: {error}",
+    "find.skipped_body": "{count} archivos no se modificaron porque no se podían leer o escribir: los detalles están en el registro.",
 
     # --- Singola immagine ---
     "single.image_box": "🖼️ Imagen (arrastra un archivo aquí o pulsa Ctrl+V)",

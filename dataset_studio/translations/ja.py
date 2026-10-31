@@ -326,6 +326,9 @@ STRINGS = {
     "find.bad_regex": "❌ 無効な正規表現：{error}",
     "find.bad_regex_title": "無効な正規表現",
     "find.preview": "🔍 {files} 個のファイルに {count} 件",
+    "find.preview_unreadable": "⚠️ 読み込めないファイル {count} 件（UTF-8 ではない？）はスキップされます",
+    "find.file_skipped": "⚠️ 検索と置換: {file} をスキップしました: {error}",
+    "find.skipped_body": "{count} 件のファイルは読み込みまたは書き込みができなかったため変更されていません。詳細はログを参照してください。",
 
     # --- Singola immagine ---
     "single.image_box": "🖼️ 画像（ここにファイルをドロップ、または Ctrl+V）",
