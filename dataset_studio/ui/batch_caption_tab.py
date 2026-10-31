@@ -305,7 +305,8 @@ class BatchCaptionTab(BatchTabBase):
         if not self.base_dir or not os.path.isdir(self.target_dir()):
             QMessageBox.information(self, tr("cap.no_captions_title"), tr("cap.no_captions_body"))
             return
-        self._auto_save_current_file()
+        if not self.maybe_save_text():
+            return
         dlg = FindReplaceDialog(self.target_dir(), self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
