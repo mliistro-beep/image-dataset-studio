@@ -132,6 +132,16 @@ L'hook GateGuard di ECC chiede alcuni dati (chiamanti, istruzione dell'utente) a
 
 - Prove manuali fatte dall'utente il 25/10 e il 30/10 (installazione aggiornata dopo le PR #12–#13, caption con Florence-2-large su CPU, nessun errore).
 - Verificati il 30/10 con l'installazione reale: fallback CUDA→CPU di onnxruntime (`CUDA_VISIBLE_DEVICES=""`: stessi tag, provider `CPUExecutionProvider`), WD14 senza rete (`unshare -rn`: cache verificata, cache senza marcatori con avviso, modello assente con errore chiaro), uscita forzata dopo 30 s in `closeEvent` (offscreen, worker che ignora lo stop), Florence-2 e moondream2 su CUDA.
-- Mai provati: JoyCaption con transformers 5 (mai scaricato, ~16 GB), moondream2 su CPU, prove con display reale (barra di download VLM, larghezza minima in tedesco/spagnolo, CJK senza font).
+- Controllo generale del codice del 31/10 (PR #16–#21): editor Batch e Mass Edit non perdono più testo, scrittura
+  atomica dei `.txt` (`layout.write_text_atomic`), nomi unici negli archivi estratti, tooltip leggibili, `setPlainText`
+  negli editor. Installazione dell'utente aggiornata e verificata (Batch Tag reale su CUDA, Sovrascrivi e Append).
+- Verificato il 31/10 dall'utente con l'installazione reale: JoyCaption Beta One con transformers 5.20.1 e
+  bitsandbytes 0.50.2, 4-bit su CUDA, profilo GPU (~5,5 GB di VRAM, caricamento ~75 s, nessun errore). L'avviso di
+  bitsandbytes "inner dimension (4304) is not aligned for fast kernel" è innocuo: usa solo un kernel più lento.
+- Mai provati: moondream2 su CPU; Batch Caption con un VLM reale dopo #19/#21 (la scrittura del `.txt` è la stessa del
+  tagging, già provato); prove con display reale (dialogo "Testo non salvato", aspetto dei tooltip, `.txt` con tag HTML
+  in un editor, barra di download VLM, larghezza minima in tedesco/spagnolo, CJK senza font).
+- Lasciati di proposito (LOW): un `.txt` in una cartella diversa dall'immagine (es. `labels/001.txt`) non viene
+  abbinato, senza avviso; l'ispettore di Mass Edit è in sola lettura quando non c'è selezione.
 - Nota: Ctrl+V della scheda Singola **non** scatta dalle altre schede (Qt ignora le scorciatoie dei widget nascosti, verificato offscreen): non serve cambiare il contesto del `QShortcut`.
 - Cache WD14: ogni file viene verificato una volta con l'`x-linked-etag` di HF (sha256 per LFS, sha1 del blob git per i file normali) e marcato con `<file>.verified` (dimensione + etag). Senza rete si usa la cache con un avviso (PR #4).
