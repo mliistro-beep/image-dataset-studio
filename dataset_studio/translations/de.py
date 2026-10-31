@@ -248,6 +248,7 @@ STRINGS = {
     "mass.no_photo": "Kein Bild",
     "mass.photo_read_error": "Fehler beim Lesen des Bildes",
     "mass.log_photo_saved": "💾 Tags für {file} gespeichert ({count} Tags)",
+    "mass.log_photo_kept": "📝 Tag-Änderungen für {file} im Speicher behalten (noch nicht auf der Festplatte gespeichert)",
     "mass.empty_fields_title": "Leere Felder",
     "mass.empty_fields_body": "Gib sowohl den alten Tag als auch den neuen Ersatz-Tag ein.",
     "mass.log_replaced": "✏️ Tag '{old}' -> '{new}' in {count} Dateien ersetzt.",

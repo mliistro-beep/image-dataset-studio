@@ -248,6 +248,7 @@ STRINGS = {
     "mass.no_photo": "Ninguna imagen",
     "mass.photo_read_error": "Error al leer la imagen",
     "mass.log_photo_saved": "💾 Etiquetas guardadas en disco para {file} ({count} etiquetas)",
+    "mass.log_photo_kept": "📝 Cambios en las etiquetas de {file} guardados en memoria (aún no en disco)",
     "mass.empty_fields_title": "Campos vacíos",
     "mass.empty_fields_body": "Introduce tanto la etiqueta anterior como la nueva que la reemplaza.",
     "mass.log_replaced": "✏️ Etiqueta '{old}' -> '{new}' reemplazada en {count} archivos.",

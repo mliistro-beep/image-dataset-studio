@@ -248,6 +248,7 @@ STRINGS = {
     "mass.no_photo": "画像なし",
     "mass.photo_read_error": "画像の読み込みエラー",
     "mass.log_photo_saved": "💾 {file} のタグをディスクに保存しました（{count} タグ）",
+    "mass.log_photo_kept": "📝 {file} のタグの変更をメモリに保持しました（まだディスクに保存されていません）",
     "mass.empty_fields_title": "未入力の項目",
     "mass.empty_fields_body": "古いタグと、置き換える新しいタグの両方を入力してください。",
     "mass.log_replaced": "✏️ {count} 個のファイルでタグ '{old}' -> '{new}' を置換しました。",

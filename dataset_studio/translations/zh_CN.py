@@ -248,6 +248,7 @@ STRINGS = {
     "mass.no_photo": "无图像",
     "mass.photo_read_error": "图像读取错误",
     "mass.log_photo_saved": "💾 已将 {file} 的标签保存到磁盘（{count} 个标签）",
+    "mass.log_photo_kept": "📝 {file} 的标签修改已保留在内存中（尚未保存到磁盘）",
     "mass.empty_fields_title": "字段为空",
     "mass.empty_fields_body": "请同时输入旧标签和用于替换的新标签。",
     "mass.log_replaced": "✏️ 已在 {count} 个文件中将标签 '{old}' 替换为 '{new}'。",
