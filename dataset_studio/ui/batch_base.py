@@ -247,7 +247,7 @@ class BatchTabBase(QWidget):
             self._on_gallery_selection_changed()
         else:
             self.lbl_preview_img.setText(tr("common.no_image"))
-            self.txt_output.setText("")
+            self.txt_output.setPlainText("")
             self.lbl_gallery_count.setText("0 / 0")
 
     def _on_thumbnail_loaded(self, filename: str, image: QImage):
@@ -293,7 +293,9 @@ class BatchTabBase(QWidget):
                     content = f.read()
             except Exception as e:
                 content = tr("batch.txt_read_error", error=e)
-        self.txt_output.setText(content)
+        # setPlainText: setText interpreta "<b>" & co. come HTML, e il salvataggio automatico riscriverebbe
+        # il file senza i tag solo sfogliando le immagini
+        self.txt_output.setPlainText(content)
         self.last_loaded_text = content
 
         row = self.list_gallery.currentRow()
@@ -431,7 +433,7 @@ class BatchTabBase(QWidget):
             self.list_gallery.blockSignals(False)
             self.lbl_gallery_count.setText(tr("batch.image_n_of", n=row + 1, total=self.list_gallery.count()))
         self.current_selected_filename = filename
-        self.txt_output.setText(text)
+        self.txt_output.setPlainText(text)
         self.last_loaded_text = text
         self.lbl_save_status.setText(tr("batch.active_file", path=f"{self.TARGET_LABEL}/{layout.txt_name(filename)}"))
 
