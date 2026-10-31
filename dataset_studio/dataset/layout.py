@@ -190,13 +190,32 @@ def import_new_images(src_paths: List[str], base_dir: str) -> List[str]:
 def write_text_atomic(path: str, text: str) -> None:
     """Scrive un .txt passando da un file temporaneo e os.replace: con un errore a metà (disco pieno, testo non
     codificabile) il file resta quello di prima invece che troncato, e in modalità Append i tag esistenti non
-    si perdono. Niente fsync: con migliaia di file rallenterebbe molto, e serve solo contro un calo di corrente."""
+    si perdono. Niente fsync: con migliaia di file rallenterebbe molto, e serve solo contro un calo di corrente.
+
+    Si scrive invece direttamente sul file, come faceva open(path, "w"), quando la sostituzione cambierebbe il
+    risultato: file con hard link (il nuovo file li staccherebbe) o cartella non scrivibile con il file
+    scrivibile. Anche lì il testo viene codificato prima di aprire il file, così un errore di codifica non lo
+    tronca. Proprietario e gruppo di un file sostituito non vengono conservati (servirebbero privilegi)."""
     # realpath: se il .txt è un link simbolico si aggiorna il file a cui punta, senza rompere il link
     target = os.path.realpath(path)
-    fd, tmp_path = tempfile.mkstemp(prefix=".", suffix=".tmp", dir=os.path.dirname(target))
+    data = text.encode("utf-8")
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
+        hard_linked = os.stat(target).st_nlink > 1
+    except FileNotFoundError:
+        hard_linked = False
+    fd = None
+    if not hard_linked:
+        try:
+            fd, tmp_path = tempfile.mkstemp(prefix=".", suffix=".tmp", dir=os.path.dirname(target))
+        except OSError:
+            pass   # cartella non scrivibile: se il file lo è, la scrittura diretta riesce come prima
+    if fd is None:
+        with open(target, "wb") as f:
+            f.write(data)
+        return
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
         if os.path.exists(target):
             shutil.copymode(target, tmp_path)
         else:

@@ -71,6 +71,33 @@ def test_new_file_follows_the_umask_like_open(tmp_path):
     assert mode(tmp_path / "new.txt") == mode(reference)
 
 
+def test_writable_file_in_a_read_only_folder_is_still_written(tmp_path):
+    # Con open(path, "w") bastava il permesso sul file: il file temporaneo richiede anche quello sulla cartella
+    folder = tmp_path / "ro"
+    folder.mkdir()
+    path = folder / "001.txt"
+    path.write_text("x", encoding="utf-8")
+    os.chmod(folder, 0o555)
+    try:
+        layout.write_text_atomic(str(path), "y")
+        assert path.read_text(encoding="utf-8") == "y"
+        assert os.listdir(folder) == ["001.txt"]
+    finally:
+        os.chmod(folder, 0o755)
+
+
+def test_keeps_hard_links(tmp_path):
+    path = tmp_path / "001.txt"
+    path.write_text("x", encoding="utf-8")
+    other = tmp_path / "copia.txt"
+    os.link(path, other)
+
+    layout.write_text_atomic(str(path), "y")
+
+    assert other.read_text(encoding="utf-8") == "y"
+    assert os.path.samefile(path, other)
+
+
 def test_writes_through_a_symlink_without_replacing_it(tmp_path):
     real = tmp_path / "real.txt"
     real.write_text("x", encoding="utf-8")
