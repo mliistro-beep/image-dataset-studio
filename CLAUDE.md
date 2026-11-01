@@ -146,11 +146,12 @@ L'hook GateGuard di ECC chiede alcuni dati (chiamanti, istruzione dell'utente) a
   Estrazione prompt sia in Batch Caption (11 immagini: Sovrascrivi, Aggiungi in coda con "Rielabora tutto", Stop a
   metà; `.txt` completi in UTF-8, nessun temporaneo rimasto). L'avviso di bitsandbytes "inner dimension (4304) is not
   aligned for fast kernel" è innocuo: usa solo un kernel più lento.
-- PR aperte il 31/10, da unire prima di questo aggiornamento: #22 colonna laterale che scorreva di lato e nascondeva
-  "Rielabora tutto" (provata dall'utente con display reale), #23 riga ETA che abbassava di metà il blocco centrale
-  durante il lavoro (provata con display reale), #24 caption dei VLM su una riga (JoyCaption risponde a volte in
-  paragrafi: righe senza trigger word nei `.txt`). I `.txt` scritti prima di #24 possono avere caption su più righe:
-  si sistemano con un nuovo giro in Sovrascrivi.
+- Unite il 31/10 (PR #22–#25), installazione dell'utente aggiornata e verificata con JoyCaption reale: #22 colonna
+  laterale che scorreva di lato e nascondeva "Rielabora tutto", #23 riga ETA che abbassava di metà il blocco centrale
+  durante il lavoro (entrambe provate dall'utente con display reale), #24 caption dei VLM su una riga (JoyCaption
+  risponde a volte in paragrafi: righe senza trigger word nei `.txt`). I `.txt` scritti prima di #24 possono avere
+  caption su più righe: si sistemano con un giro in Sovrascrivi con "Rielabora tutto", oppure unendo a mano le righe
+  senza prefisso alla caption precedente (fatto l'1/11 sul dataset di prova dell'utente).
 - Mai provati: moondream2 su CPU; prove con display reale (dialogo "Testo non salvato", aspetto dei tooltip, `.txt` con
   tag HTML in un editor, barra di download VLM, colonna laterale e larghezza minima in lingue diverse dall'italiano,
   CJK senza font).
