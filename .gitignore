@@ -32,6 +32,8 @@ Mass_beta2-lora_dataset_auto_tagger_pyside6.py
 .claude/settings.local.json
 # Istruzioni per Claude Code, solo in locale / Claude Code instructions, local only
 CLAUDE.md
+# Regole ECC per Claude Code, solo in locale / ECC rules for Claude Code, local only
+.claude/rules/
 
 # Editor / OS
 .vscode/
