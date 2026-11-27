@@ -4,6 +4,8 @@ Desktop app (PySide6) to prepare LoRA training datasets: **WD14 tagging**, **nat
 
 *[Versione italiana più sotto](#italiano)*
 
+Current version: **1.0.0**, the first stable release. See the [CHANGELOG](CHANGELOG.md).
+
 ## Features
 
 | Tab | What it does |
@@ -112,6 +114,8 @@ The AI models are **not** part of this repository and are subject to their own l
 # Italiano
 
 Applicazione desktop (PySide6) per preparare dataset di training LoRA: **tagging WD14**, **caption in linguaggio naturale con VLM** ed **estrazione del prompt da una singola immagine**. Interfaccia in italiano, inglese, spagnolo, tedesco, francese, portoghese brasiliano, cinese semplificato e giapponese.
+
+Versione attuale: **1.0.0**, la prima versione stabile. Vedi il [CHANGELOG](CHANGELOG.md#italiano).
 
 ## Funzionalità
 
