@@ -52,7 +52,7 @@ class LibraryCredit(TypedDict):
 
 
 APP_NAME = "Image Dataset Studio"
-APP_VERSION = "0.1.0"
+APP_VERSION = "1.0.0"
 LICENSE_ID = "AGPL-3.0-only"
 COPYRIGHT_YEAR = "2026"
 COPYRIGHT_HOLDER = "Mauro Liistro"
